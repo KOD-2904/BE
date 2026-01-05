@@ -1,0 +1,36 @@
+package com.ttthinh.shoe_shop_basic.exception;
+
+import lombok.Getter;
+import org.springframework.http.HttpStatus;
+
+@Getter
+public enum ErrorCode {
+    UNAUTHENTICATED_EXCEPTION(9999, "Unauthenticated Exception", HttpStatus.INTERNAL_SERVER_ERROR),
+    USER_EXIST(1001, "User Exist", HttpStatus.CONFLICT),
+    USER_NOT_EXIST(1002, "User NOT Exist", HttpStatus.BAD_REQUEST),  // Đã sửa code từ 1001 → 1002
+    EMAIL_EXIST(1003, "Email Exist", HttpStatus.BAD_REQUEST),
+    PHONE_EXIST(1004, "Phone Exist", HttpStatus.BAD_REQUEST),
+    USERNAME_EXIST(10011, "Username Exist", HttpStatus.CONFLICT),
+    VALIDATION_ERROR(1005, "Validation Error", HttpStatus.BAD_REQUEST),
+    ROLE_NOT_EXIST(1006, "Role NOT exist", HttpStatus.BAD_REQUEST),
+    PASSWORD_NOT_MATCH(1007, "Password Not Match", HttpStatus.BAD_REQUEST),
+    UNAUTHORIZED_ACCESS(1008, "You do not have permission", HttpStatus.FORBIDDEN),  // FORBIDDEN = 403
+    UNAUTHENTICATED(1009, "Unauthenticated", HttpStatus.UNAUTHORIZED),  // UNAUTHORIZED = 401
+    USERNAME_NOT_VALID(10010, "Username Not Valid", HttpStatus.BAD_REQUEST),
+    NOT_VALID_TOKEN(10011, "Not Valid Token", HttpStatus.BAD_REQUEST),
+    USERNAME_PASSWORD_NOT_MATCH(10011, "Username or Pw not match", HttpStatus.BAD_REQUEST),
+    ACCOUNT_NOT_ACTIVE(10011, "Account not active", HttpStatus.BAD_REQUEST),
+
+
+    ;
+
+    private final int code;  // Mã lỗi tự định nghĩa
+    private final String message;
+    private final HttpStatus httpStatus;  // HTTP status code
+
+    ErrorCode(int code, String message, HttpStatus httpStatus) {
+        this.code = code;
+        this.message = message;
+        this.httpStatus = httpStatus;
+    }
+}
