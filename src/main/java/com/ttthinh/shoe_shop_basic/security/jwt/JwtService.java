@@ -3,7 +3,7 @@ package com.ttthinh.shoe_shop_basic.security.jwt;
 
 import com.ttthinh.shoe_shop_basic.exception.AppException;
 import com.ttthinh.shoe_shop_basic.exception.ErrorCode;
-import com.ttthinh.shoe_shop_basic.repository.RedisTokenRepository;
+import com.ttthinh.shoe_shop_basic.repository.auth.RedisTokenRepository;
 import com.ttthinh.shoe_shop_basic.security.user.CustomUserDetails;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;

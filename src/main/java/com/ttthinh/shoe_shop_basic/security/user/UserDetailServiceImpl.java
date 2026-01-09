@@ -1,7 +1,7 @@
 package com.ttthinh.shoe_shop_basic.security.user;
 
-import com.ttthinh.shoe_shop_basic.entity.UserAccount;
-import com.ttthinh.shoe_shop_basic.repository.UserAccountRepository;
+import com.ttthinh.shoe_shop_basic.entity.auth.UserAccount;
+import com.ttthinh.shoe_shop_basic.repository.auth.UserAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

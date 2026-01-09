@@ -1,7 +1,7 @@
 package com.ttthinh.shoe_shop_basic.entity.verify;
 
 import com.ttthinh.shoe_shop_basic.entity.BaseEntity;
-import com.ttthinh.shoe_shop_basic.entity.UserAccount;
+import com.ttthinh.shoe_shop_basic.entity.auth.UserAccount;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

@@ -20,7 +20,11 @@ public enum ErrorCode {
     NOT_VALID_TOKEN(10011, "Not Valid Token", HttpStatus.BAD_REQUEST),
     USERNAME_PASSWORD_NOT_MATCH(10011, "Username or Pw not match", HttpStatus.BAD_REQUEST),
     ACCOUNT_NOT_ACTIVE(10011, "Account not active", HttpStatus.BAD_REQUEST),
-
+    END_POINT_NOT_FOUND(10012, "End Point Not Found", HttpStatus.BAD_REQUEST),
+    CATEGORY_NOT_FOUND(10013, "Category Not Found", HttpStatus.BAD_REQUEST),
+    PRODUCT_NOT_FOUND(10014, "Product Not Found", HttpStatus.BAD_REQUEST),
+    BRAND_NOT_FOUND(10015, "Brand Not Found", HttpStatus.BAD_REQUEST),
+    PRODUCT_VARIANT_NOT_FOUND(10016, "Product Variant Not Found", HttpStatus.BAD_REQUEST),
 
     ;
 

@@ -1,6 +1,6 @@
 package com.ttthinh.shoe_shop_basic.config;
 
-import com.ttthinh.shoe_shop_basic.dto.response.ApiResponse;
+import com.ttthinh.shoe_shop_basic.dto.response.auth.ApiResponse;
 import com.ttthinh.shoe_shop_basic.exception.ErrorCode;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

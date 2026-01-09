@@ -1,9 +1,9 @@
 package com.ttthinh.shoe_shop_basic.mapper;
 
-import com.ttthinh.shoe_shop_basic.dto.request.RegisterRequest;
-import com.ttthinh.shoe_shop_basic.dto.response.UserResponse;
-import com.ttthinh.shoe_shop_basic.entity.Role;
-import com.ttthinh.shoe_shop_basic.entity.UserAccount;
+import com.ttthinh.shoe_shop_basic.dto.request.auth.RegisterRequest;
+import com.ttthinh.shoe_shop_basic.dto.response.auth.UserResponse;
+import com.ttthinh.shoe_shop_basic.entity.auth.Role;
+import com.ttthinh.shoe_shop_basic.entity.auth.UserAccount;
 import com.ttthinh.shoe_shop_basic.enums.UserStatus;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

@@ -1,22 +1,17 @@
 package com.ttthinh.shoe_shop_basic.controller;
 
 import com.nimbusds.jose.JOSEException;
-import com.ttthinh.shoe_shop_basic.dto.request.IntrospecRequest;
-import com.ttthinh.shoe_shop_basic.dto.request.LoginRequest;
-import com.ttthinh.shoe_shop_basic.dto.request.LogoutRequest;
-import com.ttthinh.shoe_shop_basic.dto.request.RefreshTokenRequest;
-import com.ttthinh.shoe_shop_basic.dto.response.ApiResponse;
-import com.ttthinh.shoe_shop_basic.dto.response.AuthResponse;
-import com.ttthinh.shoe_shop_basic.dto.response.IntrospectResponse;
-import com.ttthinh.shoe_shop_basic.dto.response.TokenResponse;
-import com.ttthinh.shoe_shop_basic.service.AuthService;
-import com.ttthinh.shoe_shop_basic.service.MailService;
+import com.ttthinh.shoe_shop_basic.dto.request.auth.LoginRequest;
+import com.ttthinh.shoe_shop_basic.dto.request.auth.LogoutRequest;
+import com.ttthinh.shoe_shop_basic.dto.request.auth.RefreshTokenRequest;
+import com.ttthinh.shoe_shop_basic.dto.response.auth.ApiResponse;
+import com.ttthinh.shoe_shop_basic.dto.response.auth.AuthResponse;
+import com.ttthinh.shoe_shop_basic.dto.response.auth.LogoutResponse;
+import com.ttthinh.shoe_shop_basic.dto.response.auth.TokenResponse;
+import com.ttthinh.shoe_shop_basic.service.auth.AuthService;
+import com.ttthinh.shoe_shop_basic.service.auth.MailService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.token.TokenService;
-import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.bind.annotation.*;
 
 import java.text.ParseException;
@@ -37,7 +32,6 @@ public class AuthController {
                 .code(200)
                 .result(authenticated)
                 .build();
-
     }
 
 //    @PostMapping("/introspect")
@@ -49,11 +43,12 @@ public class AuthController {
 //    }
 
     @PostMapping("/log-out")
-    public ApiResponse<Void> logout(@RequestBody LogoutRequest logoutRequest) throws ParseException, JOSEException {
-        authService.logout(logoutRequest);
-        return ApiResponse.<Void>builder()
+    public ApiResponse<LogoutResponse> logout(@RequestBody LogoutRequest logoutRequest) throws ParseException, JOSEException {
+
+        return ApiResponse.<LogoutResponse>builder()
                 .code(200)
                 .message("logged out successfully")
+                .result(authService.logout(logoutRequest))
                 .build();
     }
     @PostMapping("/refreshToken")

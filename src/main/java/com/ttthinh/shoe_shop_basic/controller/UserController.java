@@ -1,9 +1,9 @@
 package com.ttthinh.shoe_shop_basic.controller;
 
-import com.ttthinh.shoe_shop_basic.dto.request.RegisterRequest;
-import com.ttthinh.shoe_shop_basic.dto.response.ApiResponse;
-import com.ttthinh.shoe_shop_basic.dto.response.UserResponse;
-import com.ttthinh.shoe_shop_basic.service.UserService;
+import com.ttthinh.shoe_shop_basic.dto.request.auth.RegisterRequest;
+import com.ttthinh.shoe_shop_basic.dto.response.auth.ApiResponse;
+import com.ttthinh.shoe_shop_basic.dto.response.auth.UserResponse;
+import com.ttthinh.shoe_shop_basic.service.auth.UserService;
 
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;

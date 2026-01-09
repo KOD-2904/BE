@@ -1,12 +1,12 @@
 package com.ttthinh.shoe_shop_basic.config;
 
-import com.ttthinh.shoe_shop_basic.entity.Role;
-import com.ttthinh.shoe_shop_basic.entity.UserAccount;
+import com.ttthinh.shoe_shop_basic.entity.auth.Role;
+import com.ttthinh.shoe_shop_basic.entity.auth.UserAccount;
 import com.ttthinh.shoe_shop_basic.enums.UserStatus;
 import com.ttthinh.shoe_shop_basic.exception.AppException;
 import com.ttthinh.shoe_shop_basic.exception.ErrorCode;
-import com.ttthinh.shoe_shop_basic.repository.RoleRepository;
-import com.ttthinh.shoe_shop_basic.repository.UserAccountRepository;
+import com.ttthinh.shoe_shop_basic.repository.auth.RoleRepository;
+import com.ttthinh.shoe_shop_basic.repository.auth.UserAccountRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationRunner;

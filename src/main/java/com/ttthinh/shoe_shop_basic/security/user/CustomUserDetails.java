@@ -1,15 +1,13 @@
 package com.ttthinh.shoe_shop_basic.security.user;
 
-import com.ttthinh.shoe_shop_basic.entity.UserAccount;
+import com.ttthinh.shoe_shop_basic.entity.auth.UserAccount;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.stream.Collectors;
 
 @Getter

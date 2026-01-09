@@ -1,18 +1,21 @@
 package com.ttthinh.shoe_shop_basic.exception;
 
-import com.ttthinh.shoe_shop_basic.dto.response.ApiResponse;
+import com.ttthinh.shoe_shop_basic.dto.response.auth.ApiResponse;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.security.SignatureException;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -118,7 +121,40 @@ public class GlobalExceptionHandler {
     ResponseEntity<ApiResponse> handelingMethodArgumentNotValidException(MethodArgumentNotValidException e) {
         ApiResponse apiResponse = new ApiResponse();
         apiResponse.setCode(ErrorCode.VALIDATION_ERROR.getCode());
-        apiResponse.setMessage(ErrorCode.VALIDATION_ERROR.getMessage());
+        List<String> errors = e.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                .collect(Collectors.toList());
+
+        apiResponse.setMessage(String.join("; ", errors));
         return ResponseEntity.badRequest().body(apiResponse);
     }
+    @ExceptionHandler(value = NoResourceFoundException.class)
+    ResponseEntity<ApiResponse> handelingNoResourceFoundException(NoResourceFoundException e) {
+        ApiResponse apiResponse = new ApiResponse();
+        apiResponse.setCode(ErrorCode.END_POINT_NOT_FOUND.getCode());
+        apiResponse.setMessage(ErrorCode.END_POINT_NOT_FOUND.getMessage());
+        return ResponseEntity.badRequest().body(apiResponse);
+    }
+    @ExceptionHandler({
+            ExpiredJwtException.class,
+            SignatureException.class,
+            MalformedJwtException.class,
+            IllegalArgumentException.class // Trường hợp token null/empty
+    })
+    public ResponseEntity<ApiResponse> handleJwtExceptions(Exception ex) {
+        ApiResponse apiResponse = new ApiResponse();
+        apiResponse.setCode(ErrorCode.NOT_VALID_TOKEN.getCode());
+        apiResponse.setMessage(ErrorCode.NOT_VALID_TOKEN.getMessage());
+        if (ex instanceof ExpiredJwtException) {
+            apiResponse.setMessage("Expired JWT token");
+        } else if (ex instanceof SignatureException) {
+            apiResponse.setMessage("Signature exception");
+        } else if (ex instanceof MalformedJwtException) {
+            apiResponse.setMessage("Malformed JWT token");
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(apiResponse);
+    }
+
 }
