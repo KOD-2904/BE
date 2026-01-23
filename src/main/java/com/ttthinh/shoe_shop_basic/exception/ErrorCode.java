@@ -25,8 +25,10 @@ public enum ErrorCode {
     PRODUCT_NOT_FOUND(10014, "Product Not Found", HttpStatus.BAD_REQUEST),
     BRAND_NOT_FOUND(10015, "Brand Not Found", HttpStatus.BAD_REQUEST),
     PRODUCT_VARIANT_NOT_FOUND(10016, "Product Variant Not Found", HttpStatus.BAD_REQUEST),
-
-    ;
+    UPLOAD_IMAGE_TO_CLOUD_FAILED(10017, "Upload Image to Cloud Failed", HttpStatus.BAD_REQUEST),
+    SIZE_UPLOAD_EXCEEDED(10018, "Size Upload Exceeded", HttpStatus.BAD_REQUEST),
+    DATA_INTEGRITY_VIOLATION(10019, "Data Integrity Violation", HttpStatus.BAD_REQUEST),
+    INVALID_PRODUCT_VARIANT_REQUEST(10020,"INVALID_PRODUCT_VARIANT_REQUEST" ,HttpStatus.BAD_REQUEST );
 
     private final int code;  // Mã lỗi tự định nghĩa
     private final String message;

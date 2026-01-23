@@ -30,8 +30,4 @@ public class VariantImage extends BaseEntity {
     Boolean primaryImage = false;
 
     Integer sortOrder;
-
-    @OneToMany(mappedBy = "variant", cascade = CascadeType.ALL, orphanRemoval = true)
-    Set<VariantImage> images = new HashSet<>();
-
 }

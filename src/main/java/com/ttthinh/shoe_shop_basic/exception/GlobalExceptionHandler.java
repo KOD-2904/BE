@@ -5,6 +5,7 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -12,6 +13,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
@@ -155,6 +157,25 @@ public class GlobalExceptionHandler {
             apiResponse.setMessage("Malformed JWT token");
         }
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(apiResponse);
+    }
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        ApiResponse apiResponse = new ApiResponse();
+        apiResponse.setCode(ErrorCode.SIZE_UPLOAD_EXCEEDED.getCode());
+        apiResponse.setMessage(ErrorCode.SIZE_UPLOAD_EXCEEDED.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.PAYLOAD_TOO_LARGE)  // 413 Payload Too Large
+                .body(apiResponse);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse> handlerDataIntegrityViolationException(DataIntegrityViolationException ex) {
+        ApiResponse apiResponse = new ApiResponse();
+        apiResponse.setCode(ErrorCode.DATA_INTEGRITY_VIOLATION.getCode());
+        apiResponse.setMessage(ErrorCode.DATA_INTEGRITY_VIOLATION.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)  // 413 Payload Too Large
+                .body(apiResponse);
     }
 
 }
