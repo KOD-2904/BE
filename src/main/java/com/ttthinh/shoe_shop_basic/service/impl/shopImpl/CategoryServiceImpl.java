@@ -46,4 +46,10 @@ public class CategoryServiceImpl implements CategoryService {
 
         return categoryMapper.toCategoryResponse(categoryRepository.save(category));
     }
+
+    @Override
+    public CategoryResponse getCategory(String id) {
+        return categoryMapper.toCategoryResponse(categoryRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND)));
+    }
 }

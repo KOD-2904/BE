@@ -19,4 +19,6 @@ public interface ProductService {
                                                   Integer primaryIndex);
 
     public ProductResponse addProductImages(List<MultipartFile> images, String productId, Integer primaryIndex);
+
+    ProductResponse getProduct(String productId);
 }

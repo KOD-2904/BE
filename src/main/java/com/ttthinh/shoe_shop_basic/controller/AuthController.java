@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.text.ParseException;
 
 @RestController
-@CrossOrigin("http://127.0.0.1:5500/")
+//@CrossOrigin("http://127.0.0.1:5173/")
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {

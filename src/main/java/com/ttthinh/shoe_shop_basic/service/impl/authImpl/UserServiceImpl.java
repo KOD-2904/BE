@@ -101,7 +101,7 @@ public class UserServiceImpl implements UserService {
 //        assert authentication != null;
 //        authentication.getAuthorities().forEach(grantedAuthority -> log.info(grantedAuthority.getAuthority()));
         var list = userAccountRepository.findAll();
-        return list.stream().map(userAccount -> userMapper.toUserResponse(userAccount)).collect(Collectors.toList());
+        return list.stream().map(userMapper::toUserResponse).collect(Collectors.toList());
     }
 
     @Override

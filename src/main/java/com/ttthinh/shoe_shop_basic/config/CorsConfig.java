@@ -18,7 +18,8 @@ public class CorsConfig {
         config.setAllowedOrigins(List.of(
                 "http://localhost:5500",
                 "http://127.0.0.1:5500",
-                "http://localhost:3000"
+                "http://localhost:3000",
+                "https://charlesetta-prewireless-mellie.ngrok-free.dev"
         ));
         // Nếu mở file trực tiếp (file://) thì thêm:
         // config.setAllowedOrigins(List.of("null"));

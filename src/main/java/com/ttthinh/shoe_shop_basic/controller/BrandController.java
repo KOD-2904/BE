@@ -6,13 +6,17 @@ import com.ttthinh.shoe_shop_basic.dto.response.shop.BrandResponse;
 import com.ttthinh.shoe_shop_basic.mapper.BrandMapper;
 import com.ttthinh.shoe_shop_basic.service.shop.BrandService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
+@Slf4j
 @RestController
-@RequestMapping("/brands")
+@RequestMapping("/brand")
 @RequiredArgsConstructor
 public class BrandController {
     private final BrandService brandService;
@@ -33,6 +37,7 @@ public class BrandController {
             @RequestPart(value = "image") MultipartFile image,
             @RequestParam(value = "brandId") String brandId) {
         var result = brandService.addBrandImage(image, brandId);
+        log.warn("---------------------");
         return ApiResponse.<BrandResponse>builder()
                 .result(result)
                 .code(200)
@@ -49,6 +54,24 @@ public class BrandController {
                 .result(result)
                 .code(200)
                 .message("Success")
+                .build();
+    }
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @GetMapping("/getBrands")
+    public ApiResponse<List<BrandResponse>> getBrands() {
+        return ApiResponse.<List<BrandResponse>>builder()
+                .code(200)
+                .message("Success")
+                .result(brandService.getAllBrands())
+                .build();
+    }
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @GetMapping("/getBrand")
+    public ApiResponse<BrandResponse> getBrand(@RequestParam("brandId") String brandId) {
+        return ApiResponse.<BrandResponse>builder()
+                .code(200)
+                .message("Success")
+                .result(brandService.getBrandById(brandId))
                 .build();
     }
 }

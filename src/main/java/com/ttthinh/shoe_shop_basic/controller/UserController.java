@@ -1,13 +1,18 @@
 package com.ttthinh.shoe_shop_basic.controller;
 
 import com.ttthinh.shoe_shop_basic.dto.request.auth.RegisterRequest;
+import com.ttthinh.shoe_shop_basic.dto.request.shop.AddAddressRequest;
 import com.ttthinh.shoe_shop_basic.dto.response.auth.ApiResponse;
 import com.ttthinh.shoe_shop_basic.dto.response.auth.UserResponse;
+import com.ttthinh.shoe_shop_basic.entity.auth.UserAccount;
 import com.ttthinh.shoe_shop_basic.service.auth.UserService;
 
+import com.ttthinh.shoe_shop_basic.service.impl.shopImpl.AddressService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,9 +20,23 @@ import java.util.List;
 
 @RestController
 @RequestMapping("")
+@RequiredArgsConstructor
 public class UserController {
-    @Autowired
-    private UserService userService;
+
+    private final UserService userService;
+    private final AddressService addressService;
+
+    @PostMapping("/address/add")
+    public ApiResponse addAddress(
+            @AuthenticationPrincipal(expression = "user") UserAccount user,
+            @RequestBody @Valid AddAddressRequest addAddressRequest) {
+        var result = addressService.setDefaultAddress(addAddressRequest, user);
+        return ApiResponse.builder()
+                .result(result)
+                .message("Add address successful")
+                .code(200)
+                .build();
+    }
 
     @PostMapping("/register")
     public ApiResponse<UserResponse> register(

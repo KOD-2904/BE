@@ -24,42 +24,83 @@ public class RedisTokenServiceImpl implements RedisTokenService {
     @Override
     public void saveRefreshToken(String refreshToken,
                                  String deviceId, HttpServletRequest request) {
+//        var claims = jwtService.parseToken(refreshToken).getBody();
+//        String jwtId = claims.getId();
+//        String userId = claims.get("userId", String.class);
+//        String userName = claims.getSubject();
+//        String ipAddress = request.getRemoteAddr();
+//        String tokenType = claims.get("tokenType", String.class);
+//        Date createTime = claims.getIssuedAt();
+//        Date expiryTime = claims.getExpiration();
+//        RedisToken redisToken = RedisToken.builder()
+//                .deviceId(deviceId)
+//                .id(jwtId)
+//                .ipAddress(ipAddress)
+//                .tokenType(tokenType)
+//                .userId(userId)
+//                .username(userName)
+//                .createdAt(createTime)
+//                .expiresAt(expiryTime)
+//                .active(true)
+//                .build();
+//        redisTokenRepository.save(redisToken);
+//        log.info("Save refresh token success");
         var claims = jwtService.parseToken(refreshToken).getBody();
-        String jwtId = claims.getId();
-        String userId = claims.get("userId", String.class);
-        String userName = claims.getSubject();
-        String ipAddress = request.getRemoteAddr();
-        String tokenType = claims.get("tokenType", String.class);
-        Date createTime = claims.getIssuedAt();
-        Date expiryTime = claims.getExpiration();
-        RedisToken redisToken = RedisToken.builder()
-                .deviceId(deviceId)
-                .id(jwtId)
-                .ipAddress(ipAddress)
-                .tokenType(tokenType)
-                .userId(userId)
-                .username(userName)
-                .createdAt(createTime)
-                .expiresAt(expiryTime)
-                .active(true)
-                .build();
+
+        RedisToken redisToken = RedisToken.create(
+                claims.getId(),                    // jwtId
+                claims.get("userId", String.class), // userId
+                claims.getSubject(),               // username
+                deviceId,
+                request.getRemoteAddr(),           // ipAddress
+                604800L                            // 7 ngày
+        );
+
         redisTokenRepository.save(redisToken);
-        log.info("Save refresh token success");
+        log.info("Saved refresh token for user: {}", redisToken.getUserId());
+        log.info("Saved refresh tokenId: {}", redisToken.getId());
+
     }
 
+    @Override
     public boolean isValidRefreshToken(String jwtId) {
-        RedisToken token = redisTokenRepository.findById(jwtId)
-                .orElse(null);
+        RedisToken token = redisTokenRepository.findById(jwtId).orElse(null);
 
-        if (token == null) return false;
+        if (token == null) {
+            log.warn("Refresh token not found: {}", jwtId);
+            return false;
+        }
 
-        return token.isActive();
+        boolean isActive = token.isActive();
+        boolean isNotExpired = token.getExpiresAt().after(new Date());
+
+        if (!isActive) {
+            log.warn("Refresh token is inactive: {}", jwtId);
+        }
+
+        if (!isNotExpired) {
+            log.warn("Refresh token expired at: {}", token.getExpiresAt());
+        }
+
+        return isActive && isNotExpired;
+        // Dùng cái trên de check log, xong thi cmt lai dung cai duoi
+//        return redisTokenRepository.findById(jwtId)
+//                .map(RedisToken::isValid)  // Dùng helper method
+//                .orElse(false);
     }
 
 
     @Override
     public RedisToken getRefreshTokenInfo(String refreshToken) {
-        return null;
+        var claims = jwtService.parseToken(refreshToken).getBody();
+        String jwtId = claims.getId();
+
+        return redisTokenRepository.findById(jwtId).orElse(null);
+    }
+
+    @Override
+    public RedisToken getRefreshTokenInfoById(String jwtId) {
+        return redisTokenRepository.findById(jwtId).orElse(null);
     }
 
     @Override
@@ -88,25 +129,11 @@ public class RedisTokenServiceImpl implements RedisTokenService {
 
     @Override
     public void deleteRefreshToken(String userId) {
-//        var tokens = redisTokenRepository.findByUserId(userId);
-//        log.info(" refresh token: {}",userId);
-//        for(RedisToken token : tokens) {
-//            log.info("Delete refresh token: {}", token.getUserId());
-//
-//            log.info("Delete refresh token: {}", token.getId());
-//        }
-//        if (tokens.isEmpty()) {
-//            log.info("No refresh tokens found for userId {}", userId);
-//            return;
-//        }
-//        redisTokenRepository.deleteAll(tokens);
-//        log.info("Delete token success");
-        redisTokenRepository.deleteAll(
-                redisTokenRepository.findByUserId(userId)
-        );
-
+        // ✅ Cách này gọn hơn, không cần log rải rác
+        List<RedisToken> tokens = redisTokenRepository.findByUserId(userId);
+        if (!tokens.isEmpty()) {
+            redisTokenRepository.deleteAll(tokens);
+            log.info("Deleted {} refresh tokens for user {}", tokens.size(), userId);
+        }
     }
-
-
-
 }

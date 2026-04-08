@@ -28,7 +28,21 @@ public enum ErrorCode {
     UPLOAD_IMAGE_TO_CLOUD_FAILED(10017, "Upload Image to Cloud Failed", HttpStatus.BAD_REQUEST),
     SIZE_UPLOAD_EXCEEDED(10018, "Size Upload Exceeded", HttpStatus.BAD_REQUEST),
     DATA_INTEGRITY_VIOLATION(10019, "Data Integrity Violation", HttpStatus.BAD_REQUEST),
-    INVALID_PRODUCT_VARIANT_REQUEST(10020,"INVALID_PRODUCT_VARIANT_REQUEST" ,HttpStatus.BAD_REQUEST );
+    INVALID_PRODUCT_VARIANT_REQUEST(10020,"INVALID_PRODUCT_VARIANT_REQUEST" ,HttpStatus.BAD_REQUEST ),
+    QUANTITY_NOT_VALID(10021, "Quantity Not Valid", HttpStatus.BAD_REQUEST),
+    OUT_OF_STOCK(10022, "Out of Stock", HttpStatus.BAD_REQUEST),
+    CART_ITEM_NOT_FOUND(10023, "Cart Item Not Found", HttpStatus.BAD_REQUEST),
+    TOKEN_EXPIRED(10024, "Token Expired", HttpStatus.BAD_REQUEST),
+    CART_EMPTY(10025, "Cart Empty", HttpStatus.BAD_REQUEST),
+    ORDER_NOT_FOUND(10026, "Order Not Found" , HttpStatus.BAD_REQUEST ),
+    ORDER_CANNOT_CANCEL(10027, "Order Can Cancel", HttpStatus.BAD_REQUEST ),
+    INVALID_ORDER_STATUS(10028, "Invalid Order Status", HttpStatus.BAD_REQUEST ),
+    PAYMENT_NOT_FOUND(10029, "Payment Not Found", HttpStatus.BAD_REQUEST ),
+    UNAUTHORIZED_DEVICE(10030, "Unauthorized Device", HttpStatus.UNAUTHORIZED),
+    CAN_NOT_SOLVE_SHIPPING_FEE(10029, "Can Not Solve Shipping Fee", HttpStatus.BAD_REQUEST ),
+    CAN_NOT_CONNECT_GHN(10030, "Can not connect to GHN", HttpStatus.BAD_REQUEST),
+    CAN_NOT_HASH(10032, "Error while hashing", HttpStatus.BAD_REQUEST) ,
+    ADDRESS_NOT_FOUND(10031, "Address Not Found", HttpStatus.BAD_REQUEST ),;
 
     private final int code;  // Mã lỗi tự định nghĩa
     private final String message;

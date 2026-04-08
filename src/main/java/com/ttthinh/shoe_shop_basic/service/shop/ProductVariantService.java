@@ -16,4 +16,7 @@ public interface ProductVariantService {
     public ProductVariantResponse addProductVariant(ProductVariantRequest productVariantRequest, Integer initQuantity);
     public List<ProductVariantResponse> addProductVariants(List<ProductVariantRequest> productVariantRequest, Integer initQuantity);
     public ProductVariantResponse updateProductVariant(String id, ProductVariantRequest productVariantRequest);
+
+    public void setPrimaryVariantImage(String variantId, String imageId);
+
 }

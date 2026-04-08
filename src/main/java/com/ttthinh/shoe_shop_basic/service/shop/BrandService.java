@@ -15,4 +15,6 @@ public interface BrandService {
     public BrandResponse addBrandImage(MultipartFile image, String brandId);
 
     public BrandResponse addBrandWithImage(MultipartFile image, BrandRequest brandRequest);
+
+     public BrandResponse getBrandById(String brandId);
 }

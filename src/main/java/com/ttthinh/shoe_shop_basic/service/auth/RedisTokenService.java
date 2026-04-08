@@ -11,6 +11,7 @@ public interface RedisTokenService {
                                  String deviceId, HttpServletRequest request);
     public boolean isValidRefreshToken(String jwtId);
     public RedisToken getRefreshTokenInfo(String refreshToken);
+    public RedisToken getRefreshTokenInfoById(String jwtId);
     public void revokeRefreshToken(String refreshToken);
     public void revokeAllUserTokens(String userId);
     public List<RedisToken> getUserActiveSessions(String userId);

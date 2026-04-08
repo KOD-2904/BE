@@ -139,25 +139,25 @@ public class GlobalExceptionHandler {
         apiResponse.setMessage(ErrorCode.END_POINT_NOT_FOUND.getMessage());
         return ResponseEntity.badRequest().body(apiResponse);
     }
-    @ExceptionHandler({
-            ExpiredJwtException.class,
-            SignatureException.class,
-            MalformedJwtException.class,
-            IllegalArgumentException.class // Trường hợp token null/empty
-    })
-    public ResponseEntity<ApiResponse> handleJwtExceptions(Exception ex) {
-        ApiResponse apiResponse = new ApiResponse();
-        apiResponse.setCode(ErrorCode.NOT_VALID_TOKEN.getCode());
-        apiResponse.setMessage(ErrorCode.NOT_VALID_TOKEN.getMessage());
-        if (ex instanceof ExpiredJwtException) {
-            apiResponse.setMessage("Expired JWT token");
-        } else if (ex instanceof SignatureException) {
-            apiResponse.setMessage("Signature exception");
-        } else if (ex instanceof MalformedJwtException) {
-            apiResponse.setMessage("Malformed JWT token");
-        }
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(apiResponse);
-    }
+//    @ExceptionHandler({
+//            ExpiredJwtException.class,
+//            SignatureException.class,
+//            MalformedJwtException.class,
+//            IllegalArgumentException.class // Trường hợp token null/empty
+//    })
+//    public ResponseEntity<ApiResponse> handleJwtExceptions(Exception ex) {
+//        ApiResponse apiResponse = new ApiResponse();
+//        apiResponse.setCode(ErrorCode.NOT_VALID_TOKEN.getCode());
+//        apiResponse.setMessage(ErrorCode.NOT_VALID_TOKEN.getMessage());
+//        if (ex instanceof ExpiredJwtException) {
+//            apiResponse.setMessage("Expired JWT token");
+//        } else if (ex instanceof SignatureException) {
+//            apiResponse.setMessage("Signature exception");
+//        } else if (ex instanceof MalformedJwtException) {
+//            apiResponse.setMessage("Malformed JWT token");
+//        }
+//        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(apiResponse);
+//    }
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
         ApiResponse apiResponse = new ApiResponse();

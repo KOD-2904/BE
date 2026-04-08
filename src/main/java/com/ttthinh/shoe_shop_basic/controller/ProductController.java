@@ -86,4 +86,22 @@ public class ProductController {
                 .build();
         return null;
     }
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @GetMapping(value = "/getProducts")
+    public ApiResponse<List<ProductResponse>> getProducts(){
+        return ApiResponse.<List<ProductResponse>>builder()
+                .message("success")
+                .code(200)
+                .result(productService.getAllProducts())
+                .build();
+    }
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @GetMapping(value = "/getProduct")
+    public ApiResponse<ProductResponse> getProducts(@RequestParam String productId){
+        return ApiResponse.<ProductResponse>builder()
+                .message("success")
+                .code(200)
+                .result(productService.getProduct(productId))
+                .build();
+    }
 }

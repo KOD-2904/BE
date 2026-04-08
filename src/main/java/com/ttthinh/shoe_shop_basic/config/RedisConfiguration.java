@@ -10,7 +10,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 public class RedisConfiguration {
     @Bean
     public LettuceConnectionFactory lettuceConnectionFactory() {
-        return new LettuceConnectionFactory(new RedisStandaloneConfiguration("localhost", 6379));
+        return new LettuceConnectionFactory(new RedisStandaloneConfiguration("localhost", 6380));
     }
 
     @Bean

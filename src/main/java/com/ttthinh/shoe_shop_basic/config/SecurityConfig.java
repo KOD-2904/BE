@@ -41,7 +41,7 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class SecurityConfig {
     private String[] PUBLIC_ENDPOINTS = {
-            "/auth/login", "/auth/token", "/auth/introspect", "/auth/log-out", "/auth/refreshToken", "/register", "/auth/verify-email"
+            "/api/payment/**", "/auth/login", "/auth/token", "/auth/introspect", "/auth/log-out", "/auth/refreshToken", "/register", "/auth/verify-email"
     };
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;
@@ -73,14 +73,13 @@ public class SecurityConfig {
 //                        )
 //                        .authenticationEntryPoint(new JwtAuthenticationEntryPoint())
 //                )
-        .exceptionHandling(exceptions -> exceptions
-                .authenticationEntryPoint(new JwtAuthenticationEntryPoint()));
-        httpRequest.csrf(AbstractHttpConfigurer::disable);
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(new JwtAuthenticationEntryPoint()));
+                httpRequest.csrf(AbstractHttpConfigurer::disable);
         return httpRequest.build();
     }
     @Bean
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration authConfig) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();
     }
 //    @Bean
@@ -92,24 +91,4 @@ public class SecurityConfig {
 //        converter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
 //        return converter;
 //    }
-//    @Bean
-//    public CorsConfigurationSource corsConfigurationSource() {
-//        CorsConfiguration configuration = new CorsConfiguration();
-//        configuration.setAllowedOrigins(Arrays.asList(
-//                "http://127.0.0.1:5500",
-//                "http://localhost:5500",
-//                "http://localhost:8080"
-//        ));
-//        configuration.setAllowedMethods(Arrays.asList(
-//                "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
-//        ));
-//        configuration.setAllowedHeaders(Arrays.asList("*"));
-//        configuration.setAllowCredentials(true);
-//        configuration.setMaxAge(3600L);
-//
-//        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-//        source.registerCorsConfiguration("/**", configuration);
-//        return source;
-//    }
-
 }

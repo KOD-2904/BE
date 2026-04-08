@@ -1,8 +1,13 @@
 package com.ttthinh.shoe_shop_basic.security.jwt;
 
+import com.ttthinh.shoe_shop_basic.dto.response.auth.ApiResponse;
+import com.ttthinh.shoe_shop_basic.entity.auth.UserAccount;
 import com.ttthinh.shoe_shop_basic.exception.AppException;
 import com.ttthinh.shoe_shop_basic.exception.ErrorCode;
 import com.ttthinh.shoe_shop_basic.security.user.UserDetailServiceImpl;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,11 +15,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 @Component
@@ -23,10 +30,6 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UserDetailServiceImpl userDetailService;
-
-//    private final InvalidatedTokenRepository tokenRepository;
-
-
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -64,32 +67,46 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 //                    response.getWriter().write("Invalid token type");
                     throw new AppException(ErrorCode.NOT_VALID_TOKEN);
                 }
-
                 // Set authentication cho access token
                 String username = claims.getSubject();
                 UserDetails userDetails = userDetailService.loadUserByUsername(username);
-
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails,
                                 null,
                                 userDetails.getAuthorities()
                         );
+                //SecurityContextHolder.getContext().setAuthentication(authToken);
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
                 if (SecurityContextHolder.getContext().getAuthentication() == null) {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
-
             }
-
-        } catch (Exception e) {
-            log.error("JWT error: {}", e.getMessage());
+        } catch (ExpiredJwtException e) {
+            handleJwtError(response, ErrorCode.TOKEN_EXPIRED);
+            return;
+        } catch (SignatureException | MalformedJwtException | IllegalArgumentException e) {
+            handleJwtError(response, ErrorCode.NOT_VALID_TOKEN);
+            return;
+        } catch (AppException e) {
+            handleJwtError(response, e.getErrorCode());
+            return;
         }
 
         filterChain.doFilter(request, response);
     }
+    private void handleJwtError(HttpServletResponse response, ErrorCode errorCode) throws IOException {
+        response.setStatus(errorCode.getHttpStatus().value());
+        response.setContentType("application/json");
 
+        ApiResponse<?> apiResponse = ApiResponse.builder()
+                .code(errorCode.getCode())
+                .message(errorCode.getMessage())
+                .build();
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        response.getWriter().write(objectMapper.writeValueAsString(apiResponse));
+    }
 
     private String parseJwt(HttpServletRequest request) {
         String Header = request.getHeader("Authorization");
@@ -99,58 +116,3 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 }
-
-//@Component
-//@Order(Ordered.HIGHEST_PRECEDENCE) // Chạy TRƯỚC Spring Security filters
-//public class BlacklistFilter extends OncePerRequestFilter {
-//
-//    @Autowired
-//    private InvalidatedTokenRepository invalidatedTokenRepository;
-//
-//    @Override
-//    protected void doFilterInternal(HttpServletRequest request,
-//                                    HttpServletResponse response,
-//                                    FilterChain filterChain) throws ServletException, IOException {
-//
-//        String token = extractToken(request);
-//
-//        if (token != null && isTokenBlacklisted(token)) {
-//            // Token đã logout → từ chối ngay
-//            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-//            response.setContentType("application/json");
-//            response.getWriter().write("{\"error\": \"Token has been logged out\"}");
-//            return;
-//        }
-//
-//        filterChain.doFilter(request, response);
-//    }
-//
-//    private boolean isTokenBlacklisted(String token) {
-//        try {
-//            // Extract jti từ token (không cần verify signature)
-//            String jti = extractJtiFromToken(token);
-//            return jti != null && invalidatedTokenRepository.existsById(jti);
-//        } catch (Exception e) {
-//            return false;
-//        }
-//    }
-//
-//    private String extractJtiFromToken(String token) {
-//        try {
-//            String[] parts = token.split("\\.");
-//            String payloadJson = new String(Base64.getUrlDecoder().decode(parts[1]));
-//            JsonNode payload = new ObjectMapper().readTree(payloadJson);
-//            return payload.has("jti") ? payload.get("jti").asText() : null;
-//        } catch (Exception e) {
-//            return null;
-//        }
-//    }
-//
-//    private String extractToken(HttpServletRequest request) {
-//        String bearer = request.getHeader("Authorization");
-//        if (bearer != null && bearer.startsWith("Bearer ")) {
-//            return bearer.substring(7);
-//        }
-//        return null;
-//    }
-//}

@@ -165,4 +165,15 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     public ProductVariantResponse updateProductVariant(String id, ProductVariantRequest productVariantRequest) {
         return null;
     }
+
+    @Transactional
+    public void setPrimaryVariantImage(String variantId, String imageId) {
+        ProductVariant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_VARIANT_NOT_FOUND));
+
+        variant.getImages().forEach(img ->
+                img.setPrimaryImage(img.getId().equals(imageId))
+        );
+    }
+
 }

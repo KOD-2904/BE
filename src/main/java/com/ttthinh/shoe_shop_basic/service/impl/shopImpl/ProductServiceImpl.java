@@ -149,4 +149,11 @@ public class ProductServiceImpl implements ProductService {
         return productMapper.toProductResponse(product);
     }
 
+    @Override
+    public ProductResponse getProduct(String productId) {
+        return productMapper.toProductResponse(productRepository.findById(productId)
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND)
+                ));
+    }
+
 }

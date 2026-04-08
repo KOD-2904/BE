@@ -10,4 +10,6 @@ public interface CategoryService {
 //    public CategoryResponse getCategoryById(int id);
     public List<CategoryResponse> getAllCategories();
     public CategoryResponse update(String categoryId ,CategoryRequest request);
+
+     CategoryResponse getCategory(String id);
 }

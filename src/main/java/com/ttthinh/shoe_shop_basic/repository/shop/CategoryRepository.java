@@ -8,4 +8,8 @@ import java.util.List;
 public interface CategoryRepository extends JpaRepository<Category, String> {
     boolean existsByName(String name);
     List<Category> findAll();
+
+    Category getCategoriesById(String id);
+
+    List<Category> id(String id);
 }

@@ -49,7 +49,7 @@ public class BrandServiceImpl implements BrandService {
         Brand brand = brandRepository.findById(brandId).orElseThrow(
                 () -> new AppException(ErrorCode.BRAND_NOT_FOUND)
         );
-        if(!image.isEmpty()){
+        if(image.isEmpty()){
             return brandMapper.toBrandResponse(brandRepository.save(brand));
         }
         String brandUrl = cloudinaryService.upload(
@@ -61,12 +61,19 @@ public class BrandServiceImpl implements BrandService {
     @Override
     public BrandResponse addBrandWithImage(MultipartFile image, BrandRequest brandRequest) {
         Brand brand = create(brandRequest);
-        if(image == null || !image.isEmpty()){
+        if(image == null || image.isEmpty()){
             return brandMapper.toBrandResponse(brandRepository.save(brand));
         }
         String brandUrl = cloudinaryService.upload(image, "brand/" + brand.getId());
         brand.setLogoUrl(brandUrl);
 
         return brandMapper.toBrandResponse(brandRepository.save(brand));
+    }
+
+    @Override
+    public BrandResponse getBrandById(String brandId) {
+        return brandMapper.toBrandResponse(brandRepository.findById(brandId).orElseThrow(
+                () -> new AppException(ErrorCode.BRAND_NOT_FOUND)
+        ));
     }
 }
