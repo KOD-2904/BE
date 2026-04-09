@@ -36,10 +36,11 @@ public class OrderController {
         if (req.getPaymentMethod() == PaymentMethod.VNPAY){
             VNPayPaymentRequest vnPayPaymentRequest = VNPayPaymentRequest.builder()
                     .amount(orderResponse.getFinalTotalPrice())
-                    .orderInfo("Thanh toan don hang " + orderResponse.getId())
+                    .orderInfo(orderResponse.getPaymentId())
                     .orderId(orderResponse.getId())
+                    .paymentId(orderResponse.getPaymentId())
                     .build();
-            String paymentUrl = vnPayService.createPaymentUrl(vnPayPaymentRequest, httpServletRequest.getRemoteAddr());
+            String paymentUrl = vnPayService.createPaymentUrl(vnPayPaymentRequest, httpServletRequest);
             orderResponse.setPaymentUrl(paymentUrl);
             log.info("Payment URL created: {}", paymentUrl);
         }

@@ -40,8 +40,8 @@ import java.util.Arrays;
 @EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
 public class SecurityConfig {
-    private String[] PUBLIC_ENDPOINTS = {
-            "/api/payment/**", "/auth/login", "/auth/token", "/auth/introspect", "/auth/log-out", "/auth/refreshToken", "/register", "/auth/verify-email"
+    private final String[] PUBLIC_ENDPOINTS = {
+            "/auth/login", "/auth/token", "/auth/introspect", "/auth/log-out", "/auth/refreshToken", "/register", "/auth/verify-email"
     };
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;
@@ -61,6 +61,8 @@ public class SecurityConfig {
                     authorizeRequests
                             .requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS).permitAll()
                             .requestMatchers(HttpMethod.GET, "/auth/verify-email").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/payment/**").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/api/payment/**").permitAll()
 //                            .requestMatchers(HttpMethod.POST, "/register").permitAll()
 //                            .requestMatchers(HttpMethod.POST, "/auth/introspect").permitAll()
 //                            .requestMatchers(HttpMethod.POST, "/auth/log-out").permitAll()

@@ -15,32 +15,61 @@ public class VNPayUtil {
 
     public static String hmacSHA512(String key, String data) {
         try {
-            Mac mac = Mac.getInstance("HmacSHA512");
-            SecretKeySpec secretKeySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA512");
-            mac.init(secretKeySpec);
-            byte[] rawHmac = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            return bytesToHex(rawHmac);
-        } catch (Exception e) {
-            throw new AppException(ErrorCode.CAN_NOT_HASH);
+            Mac hmac = Mac.getInstance("HmacSHA512");
+            SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(), "HmacSHA512");
+            hmac.init(secretKey);
+            byte[] hashBytes = hmac.doFinal(data.getBytes());
+            StringBuilder hash = new StringBuilder(2 * hashBytes.length);
+            for (byte b : hashBytes) {
+                hash.append(String.format("%02x", b & 0xff));
+            }
+            return hash.toString();
+        } catch (Exception ex) {
+            throw new RuntimeException("Error while hashing", ex);
         }
     }
 
-    // Tạo URL query string từ params
-    public static String buildQueryString(Map<String, String> params) {
+    public static String buildQuery(Map<String, String> params) {
+        List<String> fieldNames = new ArrayList<>(params.keySet());
+        Collections.sort(fieldNames);
+
+        StringBuilder query = new StringBuilder();
+        StringBuilder hashData = new StringBuilder();
+
+        for (String fieldName : fieldNames) {
+            String value = params.get(fieldName);
+            if (value != null && !value.isEmpty()) {
+                String encodedName = URLEncoder.encode(fieldName, StandardCharsets.US_ASCII);
+                String encodedValue = URLEncoder.encode(value, StandardCharsets.US_ASCII);
+
+                query.append(encodedName).append("=").append(encodedValue).append("&");
+                hashData.append(fieldName).append("=").append(encodedValue).append("&");
+            }
+        }
+
+        // remove last "&"
+        query.setLength(query.length() - 1);
+        hashData.setLength(hashData.length() - 1);
+
+        return hashData + "||" + query;
+    }
+
+    // Thêm method mới để tạo chuỗi hash (không có & ở đầu)
+    public static String createHashString(Map<String, String> params) {
         List<String> sortedKeys = new ArrayList<>(params.keySet());
         Collections.sort(sortedKeys);
 
-        StringBuilder query = new StringBuilder();
+        StringBuilder hashStr = new StringBuilder();
         for (String key : sortedKeys) {
             String value = params.get(key);
             if (value != null && !value.isEmpty()) {
-                if (!query.isEmpty()) {
-                    query.append("&");
+                if (!hashStr.isEmpty()) {
+                    hashStr.append("&");
                 }
-                query.append(key).append("=").append(value);
+                hashStr.append(key).append("=").append(value);
             }
         }
-        return query.toString();
+        return hashStr.toString();
     }
     // Tạo mã hóa đơn ngẫu nhiên (duy nhất trong ngày)
     public static String generateTransactionCode() {

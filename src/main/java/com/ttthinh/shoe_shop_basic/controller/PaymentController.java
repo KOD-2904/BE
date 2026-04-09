@@ -5,7 +5,10 @@ import com.ttthinh.shoe_shop_basic.dto.response.auth.ApiResponse;
 import com.ttthinh.shoe_shop_basic.dto.response.shop.VNPayCallbackResponse;
 import com.ttthinh.shoe_shop_basic.entity.order.Order;
 import com.ttthinh.shoe_shop_basic.entity.payment.Payment;
+import com.ttthinh.shoe_shop_basic.enums.OrderStatus;
 import com.ttthinh.shoe_shop_basic.enums.PaymentStatus;
+import com.ttthinh.shoe_shop_basic.exception.AppException;
+import com.ttthinh.shoe_shop_basic.exception.ErrorCode;
 import com.ttthinh.shoe_shop_basic.repository.shop.order.OrderRepository;
 import com.ttthinh.shoe_shop_basic.repository.shop.payment.PaymentRepository;
 import com.ttthinh.shoe_shop_basic.service.impl.shopImpl.payment.VNPayService;
@@ -15,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -48,7 +52,7 @@ public class PaymentController {
                 .orderInfo("Thanh toan don hang " + orderId)
                 .build();
 
-        String paymentUrl = vnPayService.createPaymentUrl(paymentRequest, request.getRequestURI());
+        String paymentUrl = vnPayService.createPaymentUrl(paymentRequest, request);
 
         // Lưu payment URL vào payment record nếu cần
         Payment payment = paymentRepository.findByOrder(order);
@@ -68,12 +72,145 @@ public class PaymentController {
      * Callback URL - VNPAY redirect về sau khi thanh toán (GET)
      * Dùng cho redirect từ trình duyệt
      */
+//    @GetMapping("/vnpay-callback")
+//    public ApiResponse<?> paymentCallback(HttpServletRequest request) {
+//        // Lấy tất cả params từ VNPAY
+//        Map<String, String> params = extractParams(request);
+//
+//        // Build callback response
+//        VNPayCallbackResponse callback = VNPayCallbackResponse.builder()
+//                .vnp_TmnCode(params.get("vnp_TmnCode"))
+//                .vnp_Amount(params.get("vnp_Amount"))
+//                .vnp_BankCode(params.get("vnp_BankCode"))
+//                .vnp_BankTranNo(params.get("vnp_BankTranNo"))
+//                .vnp_CardType(params.get("vnp_CardType"))
+//                .vnp_OrderInfo(params.get("vnp_OrderInfo"))
+//                .vnp_PayDate(params.get("vnp_PayDate"))
+//                .vnp_ResponseCode(params.get("vnp_ResponseCode"))
+//                .vnp_TxnRef(params.get("vnp_TxnRef"))
+//                .vnp_TransactionNo(params.get("vnp_TransactionNo"))
+//                .vnp_TransactionStatus(params.get("vnp_TransactionStatus"))
+//                .vnp_SecureHash(params.get("vnp_SecureHash"))
+//                .build();
+//
+//        // Validate chữ ký
+//        boolean isValid = vnPayService.validateCallback(callback);
+//
+//        if (!isValid) {
+//            log.error("Invalid signature from VNPAY callback");
+//            return ApiResponse.builder()
+//                    .result(Map.of("error", "Invalid signature"))
+//                    .message("Invalid signature")
+//                    .code(200)
+//                    .build();
+//            //return ResponseEntity.badRequest().body(Map.of("error", "Invalid signature"));
+//        }
+//
+//        String responseCode = callback.getVnp_ResponseCode();
+//        String paymentId = callback.getVnp_OrderInfo();
+//
+//
+//
+//        Payment payment = paymentRepository.findPaymentById(paymentId)
+//                .orElseThrow(() -> new AppException(ErrorCode.PAYMENT_NOT_FOUND));
+//                        //AppException("Payment not found for order: " + paymentId));
+//
+//        Order order = payment.getOrder();
+//
+//        if ("00".equals(responseCode)) {
+//            // Thanh toán thành công
+//            //payment.setStatus(PaymentStatus.SUCCESS); k update db  day
+//            //payment.setTransactionId(callback.getVnp_TransactionNo());
+//            log.warn("Transaction successful {}", payment.getTransactionId());
+//            //payment.setPaidAt(parsePayDate(callback.getVnp_PayDate()));
+//
+//             //Cập nhật trạng thái order (nếu cần)
+//             //order.setStatus(OrderStatus.CONFIRMED);
+//
+//            //orderRepository.save(order);
+//            //paymentRepository.save(payment);
+//
+//            log.info("Payment successful for order: {}", order.getId());
+//
+//            // Redirect về frontend success page
+//            return ApiResponse.builder()
+//                    .result(Map.of(
+//                    "code", "00",
+//                    "message", "Thanh toán thành công",
+//                    "orderId", order.getId()))
+//                    .message("Payment successful")
+//                    .code(200)
+//                    .build();
+////            return ResponseEntity.ok(Map.of(
+////                    "code", "00",
+////                    "message", "Thanh toán thành công",
+////                    "orderId", orderId
+////            ));
+//        } else {
+//            // Thanh toán thất bại
+//            //payment.setStatus(PaymentStatus.FAILED);
+//            //paymentRepository.save(payment);
+//
+//            log.warn("Payment failed for order: {}, responseCode: {}, paymentId: {}", order.getId(), responseCode, payment.getId());
+//
+//            // Redirect về frontend failure page
+//            return ApiResponse.builder()
+//                    .result(Map.of(
+//                            "code", responseCode,
+//                            "message", getResponseCodeMessage(responseCode),
+//                            "orderId", order.getId()))
+//                    .message("Payment failed")
+//                    .code(400)
+//                    .build();
+////            return ResponseEntity.ok(Map.of(
+////                    "code", responseCode,
+////                    "message", getResponseCodeMessage(responseCode),
+////                    "orderId", orderId
+////            ));
+//        }
+//    }  call back nay khong can thiet phai verify
+
     @GetMapping("/vnpay-callback")
     public ApiResponse<?> paymentCallback(HttpServletRequest request) {
-        // Lấy tất cả params từ VNPAY
+
         Map<String, String> params = extractParams(request);
 
-        // Build callback response
+        String responseCode = params.get("vnp_ResponseCode");
+        String paymentId = params.get("vnp_OrderInfo");
+
+        return ApiResponse.builder()
+                .result(Map.of(
+                        "code", responseCode,
+                        "paymentId", paymentId
+                ))
+                .message("Return from VNPAY")
+                .code(200)
+                .build();
+    }
+
+    /**
+     * IPN URL - VNPAY gửi thông báo từ server (không redirect)
+     * Dùng để xác nhận thanh toán bất kể user có đóng browser hay không
+     */
+//    @PostMapping("/vnpay-ipn")
+//    public ApiResponse<?> paymentIPN(HttpServletRequest request) {
+    @GetMapping("/vnpay-ipn")
+    public ResponseEntity<Map<String, String>> paymentIPN(HttpServletRequest request) {
+
+
+        Map<String, String> params = extractParams(request);
+
+        log.warn("IPN called with params: {}", params);
+
+//        VNPayCallbackResponse callback = VNPayCallbackResponse.builder()
+//                .vnp_TmnCode(params.get("vnp_TmnCode"))
+//                .vnp_OrderInfo(params.get("vnp_OrderInfo"))
+//                .vnp_Amount(params.get("vnp_Amount"))
+//                .vnp_ResponseCode(params.get("vnp_ResponseCode"))
+//                .vnp_TxnRef(params.get("vnp_TxnRef"))
+//                .vnp_TransactionNo(params.get("vnp_TransactionNo"))
+//                .vnp_SecureHash(params.get("vnp_SecureHash"))
+//                .build();
         VNPayCallbackResponse callback = VNPayCallbackResponse.builder()
                 .vnp_TmnCode(params.get("vnp_TmnCode"))
                 .vnp_Amount(params.get("vnp_Amount"))
@@ -89,139 +226,70 @@ public class PaymentController {
                 .vnp_SecureHash(params.get("vnp_SecureHash"))
                 .build();
 
-        // Validate chữ ký
-        boolean isValid = vnPayService.validateCallback(callback);
-
-        if (!isValid) {
-            log.error("Invalid signature from VNPAY callback");
-            return ApiResponse.builder()
-                    .result(Map.of("error", "Invalid signature"))
-                    .message("Invalid signature")
-                    .code(400)
-                    .build();
-            //return ResponseEntity.badRequest().body(Map.of("error", "Invalid signature"));
-        }
-
-        String responseCode = callback.getVnp_ResponseCode();
-        String orderId = callback.getVnp_TxnRef();
-
-        // Tìm order và payment
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
-
-        Payment payment = paymentRepository.findByOrder(order);
-                //.orElseThrow(() -> new RuntimeException("Payment not found for order: " + orderId));
-
-        if ("00".equals(responseCode)) {
-            // Thanh toán thành công
-            payment.setStatus(PaymentStatus.SUCCESS);
-            payment.setTransactionId(callback.getVnp_TransactionNo());
-            payment.setPaidAt(parsePayDate(callback.getVnp_PayDate()));
-
-            // Cập nhật trạng thái order (nếu cần)
-            // order.setStatus(OrderStatus.PAID);
-
-            orderRepository.save(order);
-            paymentRepository.save(payment);
-
-            log.info("Payment successful for order: {}", orderId);
-
-            // Redirect về frontend success page
-            return ApiResponse.builder()
-                    .result(Map.of(
-                    "code", "00",
-                    "message", "Thanh toán thành công",
-                    "orderId", orderId))
-                    .message("Payment successful")
-                    .code(400)
-                    .build();
-//            return ResponseEntity.ok(Map.of(
-//                    "code", "00",
-//                    "message", "Thanh toán thành công",
-//                    "orderId", orderId
-//            ));
-        } else {
-            // Thanh toán thất bại
-            payment.setStatus(PaymentStatus.FAILED);
-            paymentRepository.save(payment);
-
-            log.warn("Payment failed for order: {}, responseCode: {}", orderId, responseCode);
-
-            // Redirect về frontend failure page
-            return ApiResponse.builder()
-                    .result(Map.of(
-                            "code", responseCode,
-                            "message", getResponseCodeMessage(responseCode),
-                            "orderId", orderId))
-                    .message("Payment failed")
-                    .code(400)
-                    .build();
-//            return ResponseEntity.ok(Map.of(
-//                    "code", responseCode,
-//                    "message", getResponseCodeMessage(responseCode),
-//                    "orderId", orderId
-//            ));
-        }
-    }
-
-    /**
-     * IPN URL - VNPAY gửi thông báo từ server (không redirect)
-     * Dùng để xác nhận thanh toán bất kể user có đóng browser hay không
-     */
-    @PostMapping("/vnpay-ipn")
-    public ApiResponse<?> paymentIPN(HttpServletRequest request) {
-        Map<String, String> params = extractParams(request);
-
-        VNPayCallbackResponse callback = VNPayCallbackResponse.builder()
-                .vnp_TmnCode(params.get("vnp_TmnCode"))
-                .vnp_Amount(params.get("vnp_Amount"))
-                .vnp_ResponseCode(params.get("vnp_ResponseCode"))
-                .vnp_TxnRef(params.get("vnp_TxnRef"))
-                .vnp_TransactionNo(params.get("vnp_TransactionNo"))
-                .vnp_SecureHash(params.get("vnp_SecureHash"))
-                .build();
-
         // Validate signature
         if (!vnPayService.validateCallback(callback)) {
-            return ApiResponse.builder()
-                    .result(Map.of("RspCode", "97", "Message", "Invalid signature"))
-//                    .message("Invalid signature")
-                    .code(400)
-                    .build();
-            //return ResponseEntity.ok(
-             //       Map.of("RspCode", "97", "Message", "Invalid signature"));
+//            return ApiResponse.builder()
+//                    .result(Map.of("RspCode", "97", "Message", "Invalid signature"))
+////                    .message("Invalid signature")
+//                    .code(400)
+//                    .build();
+            log.warn("Callback validation failed");
+            return ResponseEntity.ok(
+                    Map.of("RspCode", "97", "Message", "Invalid signature"));
         }
 
         String orderId = callback.getVnp_TxnRef();
         Order order = orderRepository.findById(orderId).orElse(null);
 
         if (order == null) {
-            return ApiResponse.builder()
-                    .result(Map.of("RspCode", "01", "Message", "Order not found"))
-//                    .message("Invalid signature")
-                    .code(400)
-                    .build();
-            //return ResponseEntity.ok(Map.of("RspCode", "01", "Message", "Order not found"));
+//            return ApiResponse.builder()
+//                    .result(Map.of("RspCode", "01", "Message", "Order not found"))
+////                    .message("Invalid signature")
+//                    .code(400)
+//                    .build();
+            log.warn("Order not found");
+            return ResponseEntity.ok(Map.of("RspCode", "01", "Message", "Order not found"));
         }
-
-        Payment payment = paymentRepository.findByOrder(order);
+        String paymentId = callback.getVnp_OrderInfo();
+        Payment payment = paymentRepository.findPaymentById(paymentId).orElse(null);
         if (payment == null) {
-            return ApiResponse.builder()
-                    .result(Map.of("RspCode", "01", "Message", "Payment not found"))
-//                    .message("Invalid signature")
-                    .code(400)
-                    .build();
-            //return ResponseEntity.ok(Map.of("RspCode", "01", "Message", "Payment not found"));
+//            return ApiResponse.builder()
+//                    .result(Map.of("RspCode", "01", "Message", "Payment not found"))
+////                    .message("Invalid signature")
+//                    .code(400)
+//                    .build();
+            log.warn("Payment not found");
+            return ResponseEntity.ok(Map.of("RspCode", "01", "Message", "Payment not found"));
+        }
+        long expected = payment.getAmount()
+                .multiply(BigDecimal.valueOf(100))
+                .longValueExact();
+                //.longValue();
+
+        long actual = Long.parseLong(callback.getVnp_Amount());
+
+        if (expected != actual) {
+//        if (!payment.getAmount()
+//                .multiply(BigDecimal.valueOf(100))
+//                .toString()
+//                .equals(callback.getVnp_Amount())) {
+//
+//            log.error("Invalid amount! expected={}, actual={}",
+//                    payment.getAmount(), callback.getVnp_Amount());
+            log.warn("Amount mismatch! expected={}, actual={}", expected, actual);
+            return ResponseEntity.ok(Map.of("RspCode", "04", "Message", "Invalid amount aka amount not match"));
         }
 
         // Kiểm tra nếu đã xử lý rồi thì bỏ qua
-        if (payment.getStatus() == PaymentStatus.SUCCESS) {
-            return ApiResponse.builder()
-                    .result(Map.of("RspCode", "02", "Message", "Order already confirmed"))
-//                    .message("Invalid signature")
-                    .code(400)
-                    .build();
-            //return ResponseEntity.ok(Map.of("RspCode", "02", "Message", "Order already confirmed"));
+        if (payment.getStatus() == PaymentStatus.SUCCESS
+                || payment.getTransactionId() != null) {
+//            return ApiResponse.builder()
+//                    .result(Map.of("RspCode", "02", "Message", "Order already confirmed"))
+////                    .message("Invalid signature")
+//                    .code(400)
+//                    .build();
+            log.warn("Payment status before: {}", payment.getStatus());
+            return ResponseEntity.ok(Map.of("RspCode", "02", "Message", "Order already confirmed"));
         }
 
         String responseCode = callback.getVnp_ResponseCode();
@@ -229,24 +297,29 @@ public class PaymentController {
         if ("00".equals(responseCode)) {
             payment.setStatus(PaymentStatus.SUCCESS);
             payment.setTransactionId(callback.getVnp_TransactionNo());
-            paymentRepository.save(payment);
+            payment.setPaidAt(parsePayDate(callback.getVnp_PayDate()));
+            order.setStatus(OrderStatus.CONFIRMED);
 
-            // TODO: Cập nhật order status, gửi email xác nhận, tạo đơn GHN...
-            return ApiResponse.builder()
-                    .result(Map.of("RspCode", "00", "Message", "Success"))
-//                    .message("Invalid signature")
-                    .code(400)
-                    .build();
-            //return ResponseEntity.ok(Map.of("RspCode", "00", "Message", "Success"));
+            paymentRepository.save(payment);
+            orderRepository.save(order);
+
+//            return ApiResponse.builder()
+//                    .result(Map.of("RspCode", "00", "Message", "Success"))
+////                    .message("Invalid signature")
+//                    .code(400)
+//                    .build();
+            log.warn("Payment successfully confirmed");
+            return ResponseEntity.ok(Map.of("RspCode", "00", "Message", "Success"));
         } else {
             payment.setStatus(PaymentStatus.FAILED);
             paymentRepository.save(payment);
-            return ApiResponse.builder()
-                    .result(Map.of("RspCode", "00", "Message", "Payment failed, order updated"))
-//                    .message("Invalid signature")
-                    .code(400)
-                    .build();
-           // return ResponseEntity.ok(Map.of("RspCode", "00", "Message", "Payment failed, order updated"));
+//            return ApiResponse.builder()
+//                    .result(Map.of("RspCode", "00", "Message", "Payment failed, order updated"))
+////                    .message("Invalid signature")
+//                    .code(400)
+//                    .build();
+            log.warn("Payment failed");
+           return ResponseEntity.ok(Map.of("RspCode", "00", "Message", "Payment failed, order updated"));
         }
     }
 

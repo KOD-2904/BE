@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class VNPayPaymentRequest {
     private String orderId;           // Mã đơn hàng của merchant
+    private String paymentId;
     private BigDecimal amount;        // Số tiền (VNĐ)
     private String orderInfo;         // Thông tin đơn hàng
     private String returnUrl;         // URL trả về sau thanh toán

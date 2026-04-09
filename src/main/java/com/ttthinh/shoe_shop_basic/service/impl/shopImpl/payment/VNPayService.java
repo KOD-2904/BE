@@ -4,6 +4,7 @@ import com.ttthinh.shoe_shop_basic.config.VNPayConfig;
 import com.ttthinh.shoe_shop_basic.dto.request.shop.VNPayPaymentRequest;
 import com.ttthinh.shoe_shop_basic.dto.response.shop.VNPayCallbackResponse;
 import com.ttthinh.shoe_shop_basic.util.VNPayUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,20 +18,44 @@ import java.util.Map;
 @Slf4j
 public class VNPayService {
     private final VNPayConfig vnPayConfig;
+    // SỬA method lấy IP trong controller
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
 
+        // Nếu là IPv6 localhost (0:0:0:0:0:0:0:1) -> chuyển thành IPv4
+        if ("0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) {
+            ip = "127.0.0.1";
+        }
+
+        // Nếu có nhiều IP (X-Forwarded-For có thể trả về "client, proxy")
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+
+        return ip;
+    }
     /**
      * Tạo URL thanh toán VNPAY
      */
-    public String createPaymentUrl(VNPayPaymentRequest request, String ipAddress) {
-        // Chuyển amount sang đơn vị VND * 100 (theo yêu cầu VNPAY)
+    public String createPaymentUrl(VNPayPaymentRequest request, HttpServletRequest httpServletRequest) {
         long amountInCents = request.getAmount().multiply(BigDecimal.valueOf(100)).longValue();
 
-        // Tạo mã giao dịch duy nhất nếu chưa có
         String txnRef = request.getOrderId() != null
                 ? request.getOrderId()
                 : VNPayUtil.generateTransactionCode();
 
-        // Build params
+        String createDate = getCurrentDate();
+        String expireDate = getExpireDate(); // Hết hạn sau 15 phút
+
         Map<String, String> params = new HashMap<>();
         params.put("vnp_Version", vnPayConfig.getVersion());
         params.put("vnp_Command", vnPayConfig.getCommand());
@@ -38,20 +63,43 @@ public class VNPayService {
         params.put("vnp_Amount", String.valueOf(amountInCents));
         params.put("vnp_CurrCode", vnPayConfig.getCurrency());
         params.put("vnp_TxnRef", txnRef);
-        params.put("vnp_OrderInfo", request.getOrderInfo());
+        params.put("vnp_OrderInfo", request.getOrderInfo()); // Bỏ dấu tiếng Việt
+        //params.put("vnp_OrderInfo", removeAccent(request.getOrderInfo())); // Bỏ dấu tiếng Việt
         params.put("vnp_OrderType", vnPayConfig.getOrderType());
         params.put("vnp_Locale", vnPayConfig.getLocale());
-        params.put("vnp_ReturnUrl", request.getReturnUrl() != null ?
-                request.getReturnUrl() : vnPayConfig.getReturnUrl());
-        params.put("vnp_IpAddr", ipAddress);  // Cần lấy IP thực tế của request
-        params.put("vnp_CreateDate", getCurrentDate());
+        params.put("vnp_ReturnUrl", vnPayConfig.getReturnUrl());
+        params.put("vnp_IpAddr", getClientIp(httpServletRequest));
+        params.put("vnp_CreateDate", createDate);
+        params.put("vnp_ExpireDate", expireDate);
 
-        // Sắp xếp params và tạo chữ ký
-        String queryString = VNPayUtil.buildQueryString(params);
-        String secureHash = VNPayUtil.hmacSHA512(vnPayConfig.getHashSecret(), queryString);
+        String[] buildData = VNPayUtil.buildQuery(params).split("\\|\\|");
+        String hashData = buildData[0];
+        String query = buildData[1];
 
-        // URL hoàn chỉnh
-        return vnPayConfig.getPaymentUrl() + "?" + queryString + "&vnp_SecureHash=" + secureHash;
+        String secureHash = VNPayUtil.hmacSHA512(vnPayConfig.getHashSecret(), hashData);
+
+        return vnPayConfig.getPaymentUrl() + "?" + query + "&vnp_SecureHash=" + secureHash;
+    }
+    // Thêm method tính expire date
+    private String getExpireDate() {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.LocalDateTime expire = now.plusMinutes(15);
+        java.time.format.DateTimeFormatter formatter =
+                java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+        return expire.format(formatter);
+    }
+
+    // Helper method bỏ dấu tiếng Việt
+    private String removeAccent(String text) {
+        String result = text.toLowerCase();
+        result = result.replaceAll("à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ", "a");
+        result = result.replaceAll("è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ", "e");
+        result = result.replaceAll("ì|í|ị|ỉ|ĩ", "i");
+        result = result.replaceAll("ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ", "o");
+        result = result.replaceAll("ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ", "u");
+        result = result.replaceAll("ỳ|ý|ỵ|ỷ|ỹ", "y");
+        result = result.replaceAll("đ", "d");
+        return result;
     }
 
     /**
@@ -71,8 +119,8 @@ public class VNPayService {
         fields.put("vnp_TransactionNo", callback.getVnp_TransactionNo());
         fields.put("vnp_TransactionStatus", callback.getVnp_TransactionStatus());
 
-        String queryString = VNPayUtil.buildQueryString(fields);
-        String expectedHash = VNPayUtil.hmacSHA512(vnPayConfig.getHashSecret(), queryString);
+        String[] queryString = VNPayUtil.buildQuery(fields).split("\\|\\|");
+        String expectedHash = VNPayUtil.hmacSHA512(vnPayConfig.getHashSecret(), queryString[0]);
 
         return expectedHash.equals(callback.getVnp_SecureHash());
     }
