@@ -3,7 +3,6 @@ package com.ttthinh.shoe_shop_basic.security.jwt;
 
 import com.ttthinh.shoe_shop_basic.exception.AppException;
 import com.ttthinh.shoe_shop_basic.exception.ErrorCode;
-import com.ttthinh.shoe_shop_basic.repository.auth.RedisTokenRepository;
 import com.ttthinh.shoe_shop_basic.security.user.CustomUserDetails;
 import com.ttthinh.shoe_shop_basic.security.user.UserDetailServiceImpl;
 import io.jsonwebtoken.*;
@@ -27,12 +26,15 @@ import java.util.UUID;
 public class JwtService {
       private final JwtProperties jwtProperties;
 
-      private final RedisTokenRepository redisTokenRepository;
-
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes());
     }
-
+    public Jws<Claims> parseToken(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token);
+    }
     // Tạo access token từ Authentication (lúc login)
     // Tạo access token từ Authentication (lúc login)
     public String generateAccessToken(Authentication authentication, String deviceId) {
@@ -122,12 +124,7 @@ public class JwtService {
 //                .compact();
 //    }
 
-    public Jws<Claims> parseToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token);
-    }
+
 
 //    public String getTokenType(Jws<Claims> claims) {
 //        try {

@@ -1,8 +1,8 @@
 package com.ttthinh.shoe_shop_basic.mapper;
 
-import com.ttthinh.shoe_shop_basic.dto.response.shop.CartItemResponse;
-import com.ttthinh.shoe_shop_basic.entity.Brand;
-import com.ttthinh.shoe_shop_basic.entity.Category;
+import com.ttthinh.shoe_shop_basic.dto.response.cart.CartItemResponse;
+import com.ttthinh.shoe_shop_basic.entity.catalog.Brand;
+import com.ttthinh.shoe_shop_basic.entity.catalog.Category;
 import com.ttthinh.shoe_shop_basic.entity.cart.CartItem;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -15,16 +15,16 @@ import java.util.List;
 public interface CartItemMapper {
 
     @Mapping(target = "cartItemId", source = "id")
-    @Mapping(target = "variantId", source = "variant.id")
+    @Mapping(target = "variantSizeId", source = "variantSize.id")
 
-    @Mapping(target = "productName", source = "variant.product.name")
-    @Mapping(target = "brand", source = "variant.product.brand", qualifiedByName = "mapBrandName")
-    @Mapping(target = "category", source = "variant.product.category", qualifiedByName = "mapCategoryName")
+    @Mapping(target = "productName", source = "variantSize.variant.product.name")
+    @Mapping(target = "brand", source = "variantSize.variant.product.brand", qualifiedByName = "mapBrandName")
+    @Mapping(target = "category", source = "variantSize.variant.product.category", qualifiedByName = "mapCategoryName")
 
-    @Mapping(target = "size", source = "variant.size")
-    @Mapping(target = "color", source = "variant.color")
+    @Mapping(target = "size", source = "variantSize.size")
+    @Mapping(target = "color", source = "variantSize.variant.color")
 
-    @Mapping(target = "price", source = "variant.price")
+    @Mapping(target = "price", source = "variantSize.price")
     @Mapping(target = "quantity", source = "quantity")
     @Mapping(target = "lineTotal", source = ".", qualifiedByName = "mapLineTotal")
     CartItemResponse toResponse(CartItem cartItem);
@@ -45,8 +45,8 @@ public interface CartItemMapper {
 
     @Named("mapLineTotal")
     default BigDecimal mapLineTotal(CartItem item) {
-        if (item == null || item.getVariant() == null) return BigDecimal.ZERO;
-        return item.getVariant().getPrice()
+        if (item == null || item.getVariantSize() == null) return BigDecimal.ZERO;
+        return item.getVariantSize().getPrice()
                 .multiply(BigDecimal.valueOf(item.getQuantity()));
     }
 }

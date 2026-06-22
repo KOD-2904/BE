@@ -1,7 +1,6 @@
 package com.ttthinh.shoe_shop_basic.security.jwt;
 
 import com.ttthinh.shoe_shop_basic.dto.response.auth.ApiResponse;
-import com.ttthinh.shoe_shop_basic.entity.auth.UserAccount;
 import com.ttthinh.shoe_shop_basic.exception.AppException;
 import com.ttthinh.shoe_shop_basic.exception.ErrorCode;
 import com.ttthinh.shoe_shop_basic.security.user.UserDetailServiceImpl;
@@ -15,7 +14,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -24,20 +22,29 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+
 @Component
 @Slf4j
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UserDetailServiceImpl userDetailService;
+
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+        String requestPath = request.getServletPath();
+        String method = request.getMethod();
+
+        if (isPublicAuthRequest(requestPath, method)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         String jwt = parseJwt(request);
-        String requestPath = request.getServletPath();
-
         if (jwt == null) {
             filterChain.doFilter(request, response);
             return;
@@ -45,42 +52,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             var claims = jwtService.parseToken(jwt).getBody();
-
-            String jti = claims.getId();
-
             String tokenType = claims.get("tokenType", String.class);
 
-            if ("/auth/refresh".equals(requestPath) && "POST".equalsIgnoreCase(request.getMethod())) {
-                // Endpoint refresh chỉ chấp nhận refresh token
-                if (!"REFRESH".equals(tokenType)) {
-                    log.info("Access token used for refresh endpoint");
-                    throw new AppException(ErrorCode.EMAIL_EXIST);
-                }
-                // Cho refresh token qua mà không set authentication
-                filterChain.doFilter(request, response);
-                return;
-            } else {
-                // Các endpoint khác chỉ chấp nhận access token
-                if (!"ACCESS".equals(tokenType)) {
-                    log.info("Refresh token used for non-refresh endpoint");
-//                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-//                    response.getWriter().write("Invalid token type");
-                    throw new AppException(ErrorCode.NOT_VALID_TOKEN);
-                }
-                // Set authentication cho access token
-                String username = claims.getSubject();
-                UserDetails userDetails = userDetailService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities()
-                        );
-                //SecurityContextHolder.getContext().setAuthentication(authToken);
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                if (SecurityContextHolder.getContext().getAuthentication() == null) {
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                }
+            if (!"ACCESS".equals(tokenType)) {
+                log.info("Refresh token used for non-refresh endpoint");
+                throw new AppException(ErrorCode.NOT_VALID_TOKEN);
+            }
+
+            String username = claims.getSubject();
+            UserDetails userDetails = userDetailService.loadUserByUsername(username);
+            UsernamePasswordAuthenticationToken authToken =
+                    new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
+            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+            if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         } catch (ExpiredJwtException e) {
             handleJwtError(response, ErrorCode.TOKEN_EXPIRED);
@@ -95,6 +85,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         filterChain.doFilter(request, response);
     }
+
+    private boolean isPublicAuthRequest(String requestPath, String method) {
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            return true;
+        }
+        if ("GET".equalsIgnoreCase(method) && "/auth/verify-email".equals(requestPath)) {
+            return true;
+        }
+        if (!"POST".equalsIgnoreCase(method)) {
+            return false;
+        }
+        return "/auth/login".equals(requestPath)
+                || "/auth/google".equals(requestPath)
+                || "/auth/token".equals(requestPath)
+                || "/auth/introspect".equals(requestPath)
+                || "/auth/log-out".equals(requestPath)
+                || "/auth/refreshToken".equals(requestPath)
+                || "/register".equals(requestPath);
+    }
+
     private void handleJwtError(HttpServletResponse response, ErrorCode errorCode) throws IOException {
         response.setStatus(errorCode.getHttpStatus().value());
         response.setContentType("application/json");
@@ -109,9 +119,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private String parseJwt(HttpServletRequest request) {
-        String Header = request.getHeader("Authorization");
-        if (Header != null && Header.startsWith("Bearer ")) {
-            return Header.substring(7);
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
         }
         return null;
     }

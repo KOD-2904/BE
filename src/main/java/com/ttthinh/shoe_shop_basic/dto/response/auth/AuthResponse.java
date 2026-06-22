@@ -1,5 +1,6 @@
 package com.ttthinh.shoe_shop_basic.dto.response.auth;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 
 @Getter
@@ -10,6 +11,9 @@ import lombok.*;
 public class AuthResponse {
     boolean authenticated;
     String accessToken;
+    @JsonIgnore
     String refreshToken;
-    String username;
+    String email;
+    String phone;
+    String provider;
 }

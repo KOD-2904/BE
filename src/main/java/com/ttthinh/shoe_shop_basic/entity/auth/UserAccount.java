@@ -1,8 +1,8 @@
 package com.ttthinh.shoe_shop_basic.entity.auth;
 
 import com.ttthinh.shoe_shop_basic.entity.BaseEntity;
+import com.ttthinh.shoe_shop_basic.enums.AuthProvider;
 import com.ttthinh.shoe_shop_basic.enums.UserStatus;
-import com.ttthinh.shoe_shop_basic.validation.UserNameConstraint;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -17,31 +17,24 @@ import java.util.Set;
                 @UniqueConstraint(name = "uk_user_phone", columnNames = "phone")
         }
 )
-
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
 public class UserAccount extends BaseEntity {
 
-    @Column(name = "username", nullable = false, length = 100)
-    @UserNameConstraint
-    private String username;
-
     @Column(name = "email", nullable = false, length = 255)
     private String email;
 
-    @Column(name = "password", nullable = false, length = 255)
-    private String password;
-
-    @Column(name = "firstname", length = 255)
-    private String firstName;
-
-    @Column(name = "lastname", length = 255)
-    private String lastName;
-
     @Column(name = "phone", length = 20)
     private String phone;
+
+    @Column(name = "password", length = 255)
+    private String password;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "provider", nullable = false, length = 20)
+    private AuthProvider provider = AuthProvider.LOCAL;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)

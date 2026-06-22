@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 public class CustomUserDetails implements UserDetails {
     private final UserAccount user;
 
-
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return user.getRoles().stream()
@@ -34,7 +33,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public String getUsername() {
-        return user.getUsername();
+        return user.getEmail();
     }
 
     @Override

@@ -16,9 +16,28 @@ public class GHNConfig {
     @Value("${ghn.from-district-id}")
     private Integer fromDistrictId;
 
+    @Value("${ghn.from-district-name}")
+    private String fromDistrictName;
+
     @Value("${ghn.from-ward-code}")
     private String fromWardCode;
 
+    @Value("${ghn.from-ward-name}")
+    private String fromWardName;
+
+    @Value("${ghn.from-province-code}")
+    private Integer fromProvinceCode;
+
+    @Value("${ghn.from-province-name}")
+    private String fromProvinceName;
+
+    @Value("${ghn.from-detail-address}")
+    private String fromDetailAddress;
+
     @Value("${ghn.api-url}")
     private String apiUrl;
+
+    public String getFullAddress() {
+        return fromDetailAddress + ", " + fromWardName + ", " + fromDistrictName + ", " + fromProvinceName;
+    }
 }

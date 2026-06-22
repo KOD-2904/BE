@@ -1,7 +1,7 @@
 package com.ttthinh.shoe_shop_basic.mapper;
 
-import com.ttthinh.shoe_shop_basic.dto.response.shop.OrderItemResponse;
-import com.ttthinh.shoe_shop_basic.dto.response.shop.OrderResponse;
+import com.ttthinh.shoe_shop_basic.dto.response.order.OrderItemResponse;
+import com.ttthinh.shoe_shop_basic.dto.response.order.OrderResponse;
 import com.ttthinh.shoe_shop_basic.entity.order.Order;
 import com.ttthinh.shoe_shop_basic.entity.order.OrderItem;
 import org.mapstruct.Mapper;
@@ -38,10 +38,10 @@ public interface OrderMapper {
 //        // return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
 //    }
 
-    @Mapping(target = "productId", source = "variant.product.id")
-    @Mapping(target = "productName", source = "variant.product.name")
-    @Mapping(target = "variantId", source = "variant.id")
-    @Mapping(target = "variantName", source = "variant.color")
+    @Mapping(target = "productId", source = "variantSize.variant.product.id")
+    @Mapping(target = "productName", source = "variantSize.variant.product.name")
+    @Mapping(target = "variantSizeId", source = "variantSize.id")
+    @Mapping(target = "variantName", source = "variantSize.variant.color")
     @Mapping(target = "totalPrice", expression =
             "java(calcTotal(item.getUnitPrice(), item.getQuantity()))")
     OrderItemResponse toOrderItemResponse(OrderItem item);

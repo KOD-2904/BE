@@ -1,9 +1,19 @@
 package com.ttthinh.shoe_shop_basic.entity.order;
 
 import com.ttthinh.shoe_shop_basic.entity.BaseEntity;
-import com.ttthinh.shoe_shop_basic.entity.product.ProductVariant;
-import jakarta.persistence.*;
-import lombok.*;
+import com.ttthinh.shoe_shop_basic.entity.catalog.VariantSize;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
@@ -23,12 +33,9 @@ public class OrderItem extends BaseEntity {
     Order order;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "variant_id", nullable = false)
-    ProductVariant variant;
+    @JoinColumn(name = "variant_size_id", nullable = false)
+    VariantSize variantSize;
 
-    /**
-     * Snapshot giá tại thời điểm mua
-     */
     @Column(nullable = false, precision = 18, scale = 2)
     BigDecimal unitPrice;
 

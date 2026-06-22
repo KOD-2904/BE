@@ -1,7 +1,7 @@
 package com.ttthinh.shoe_shop_basic.mapper;
 
-import com.ttthinh.shoe_shop_basic.dto.response.shop.CategoryResponse;
-import com.ttthinh.shoe_shop_basic.entity.Category;
+import com.ttthinh.shoe_shop_basic.dto.response.catalog.CategoryResponse;
+import com.ttthinh.shoe_shop_basic.entity.catalog.Category;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

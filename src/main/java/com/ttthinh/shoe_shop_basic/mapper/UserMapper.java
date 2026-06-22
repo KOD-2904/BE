@@ -4,15 +4,15 @@ import com.ttthinh.shoe_shop_basic.dto.request.auth.RegisterRequest;
 import com.ttthinh.shoe_shop_basic.dto.response.auth.UserResponse;
 import com.ttthinh.shoe_shop_basic.entity.auth.Role;
 import com.ttthinh.shoe_shop_basic.entity.auth.UserAccount;
+import com.ttthinh.shoe_shop_basic.enums.AuthProvider;
 import com.ttthinh.shoe_shop_basic.enums.UserStatus;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 
-import java.util.Set;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
-
 
 @Mapper(componentModel = "spring")
 public interface UserMapper {
@@ -21,12 +21,14 @@ public interface UserMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "emailVerified", ignore = true)
+    @Mapping(target = "provider", ignore = true)
     @Mapping(target = "roles", ignore = true)
     @Mapping(target = "password", ignore = true)
     UserAccount toUser(RegisterRequest request);
 
     @Mapping(target = "roles", source = "roles", qualifiedByName = "mapRolesToStringSet")
     @Mapping(target = "status", source = "status", qualifiedByName = "mapStatusToString")
+    @Mapping(target = "provider", source = "provider", qualifiedByName = "mapProviderToString")
     UserResponse toUserResponse(UserAccount user);
 
     @Named("mapRolesToStringSet")
@@ -42,5 +44,10 @@ public interface UserMapper {
     @Named("mapStatusToString")
     default String mapStatusToString(UserStatus status) {
         return status != null ? status.name() : null;
+    }
+
+    @Named("mapProviderToString")
+    default String mapProviderToString(AuthProvider provider) {
+        return provider != null ? provider.name().toLowerCase() : null;
     }
 }

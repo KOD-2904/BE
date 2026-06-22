@@ -1,9 +1,8 @@
 package com.ttthinh.shoe_shop_basic.controller.admin;
 
-import com.ttthinh.shoe_shop_basic.dto.request.shop.UpdateOrderStatusRequest;
-import com.ttthinh.shoe_shop_basic.dto.response.shop.OrderResponse;
-import com.ttthinh.shoe_shop_basic.service.impl.shopImpl.OrderServiceImpl;
-import com.ttthinh.shoe_shop_basic.service.shop.OrderService;
+import com.ttthinh.shoe_shop_basic.dto.request.order.UpdateOrderStatusRequest;
+import com.ttthinh.shoe_shop_basic.dto.response.order.OrderResponse;
+import com.ttthinh.shoe_shop_basic.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;

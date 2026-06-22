@@ -1,7 +1,7 @@
 package com.ttthinh.shoe_shop_basic.mapper;
 
-import com.ttthinh.shoe_shop_basic.dto.response.shop.BrandResponse;
-import com.ttthinh.shoe_shop_basic.entity.Brand;
+import com.ttthinh.shoe_shop_basic.dto.response.catalog.BrandResponse;
+import com.ttthinh.shoe_shop_basic.entity.catalog.Brand;
 import org.mapstruct.Mapper;
 
 import java.util.List;

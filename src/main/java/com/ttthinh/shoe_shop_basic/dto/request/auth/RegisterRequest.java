@@ -1,8 +1,7 @@
 package com.ttthinh.shoe_shop_basic.dto.request.auth;
 
-import com.ttthinh.shoe_shop_basic.validation.UserNameConstraint;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.validation.annotation.Validated;
@@ -14,13 +13,12 @@ import org.springframework.validation.annotation.Validated;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Validated
 public class RegisterRequest {
-    @NotBlank
-    @UserNameConstraint(message = "USERNAME_NOT_VALID", min = 5)
-    String username;
-    @NotNull(message = "Mật khẩu không trống")
-    String password;
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email must be valid")
     String email;
-    String firstName;
-    String lastName;
+
+    @NotBlank(message = "Password is required")
+    String password;
+
     String phone;
 }
