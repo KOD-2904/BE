@@ -3,6 +3,8 @@ package com.ttthinh.shoe_shop_basic.dto.response.auth;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 
+import java.util.Set;
+
 @Getter
 @Setter
 @Builder
@@ -15,5 +17,5 @@ public class AuthResponse {
     String refreshToken;
     String email;
     String phone;
-    String provider;
+    Set<String> providers;
 }

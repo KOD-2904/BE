@@ -66,8 +66,15 @@ public class RedisConfiguration {
         return RedisCacheManager.builder(factory)
                 .cacheDefaults(config)
                 .withCacheConfiguration("products", config.entryTtl(Duration.ofMinutes(10)))
-                .withCacheConfiguration("categories", config.entryTtl(Duration.ofHours(1)))
-                .withCacheConfiguration("users", config.entryTtl(Duration.ofMinutes(30)))
+                .withCacheConfiguration("productDetail", config.entryTtl(Duration.ofMinutes(5)))
+                .withCacheConfiguration("variants", config.entryTtl(Duration.ofMinutes(5)))
+                .withCacheConfiguration("variantsByProduct", config.entryTtl(Duration.ofMinutes(5)))
+                .withCacheConfiguration("brands", config.entryTtl(Duration.ofMinutes(30)))
+                .withCacheConfiguration("brandDetail", config.entryTtl(Duration.ofMinutes(30)))
+                .withCacheConfiguration("categories", config.entryTtl(Duration.ofMinutes(30)))
+                .withCacheConfiguration("categoryDetail", config.entryTtl(Duration.ofMinutes(30)))
+                .withCacheConfiguration("userProfile", config.entryTtl(Duration.ofMinutes(2)))
+                .withCacheConfiguration("users", config.entryTtl(Duration.ofMinutes(10)))
                 .build();
     }
 }

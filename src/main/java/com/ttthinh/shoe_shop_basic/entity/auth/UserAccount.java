@@ -32,9 +32,17 @@ public class UserAccount extends BaseEntity {
     @Column(name = "password", length = 255)
     private String password;
 
+    @Column(name = "google_id", unique = true)
+    private String googleId;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "user_provider",
+            joinColumns = @JoinColumn(name = "user_id")
+    )
     @Enumerated(EnumType.STRING)
     @Column(name = "provider", nullable = false, length = 20)
-    private AuthProvider provider = AuthProvider.LOCAL;
+    private Set<AuthProvider> providers = new HashSet<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -53,4 +61,25 @@ public class UserAccount extends BaseEntity {
             }
     )
     private Set<Role> roles = new HashSet<>();
+
+    public boolean hasProvider(AuthProvider provider) {
+        return provider != null && getProviders().contains(provider);
+    }
+
+    public void addProvider(AuthProvider provider) {
+        if (provider != null) {
+            getProviders().add(provider);
+        }
+    }
+
+    public Set<AuthProvider> getProviders() {
+        if (providers == null) {
+            providers = new HashSet<>();
+        }
+        return providers;
+    }
+
+    public void setProviders(Set<AuthProvider> providers) {
+        this.providers = providers != null ? providers : new HashSet<>();
+    }
 }

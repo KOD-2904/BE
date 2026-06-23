@@ -11,17 +11,18 @@ import com.ttthinh.shoe_shop_basic.exception.AppException;
 import com.ttthinh.shoe_shop_basic.exception.ErrorCode;
 import com.ttthinh.shoe_shop_basic.repository.jpa.OrderRepository;
 import com.ttthinh.shoe_shop_basic.repository.jpa.PaymentRepository;
+import com.ttthinh.shoe_shop_basic.service.InventoryLockService;
 import com.ttthinh.shoe_shop_basic.service.impl.payment.VNPayService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,6 +34,7 @@ public class PaymentController {
     private final VNPayService vnPayService;
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
+    private final InventoryLockService inventoryLockService;
 
     /**
      * API tạo payment URL (FE gọi khi user chọn thanh toán VNPAY)
@@ -119,7 +121,7 @@ public class PaymentController {
 //
 //        if ("00".equals(responseCode)) {
 //            // Thanh toán thành công
-//            //payment.setStatus(PaymentStatus.SUCCESS); k update db  day
+//            //payment.setStatus(PaymentStatus.PAID); k update db  day
 //            //payment.setTransactionId(callback.getVnp_TransactionNo());
 //            log.warn("Transaction successful {}", payment.getTransactionId());
 //            //payment.setPaidAt(parsePayDate(callback.getVnp_PayDate()));
@@ -195,6 +197,7 @@ public class PaymentController {
 //    @PostMapping("/vnpay-ipn")
 //    public ApiResponse<?> paymentIPN(HttpServletRequest request) {
     @GetMapping("/vnpay-ipn")
+    @Transactional
     public ResponseEntity<Map<String, String>> paymentIPN(HttpServletRequest request) {
 
 
@@ -281,7 +284,8 @@ public class PaymentController {
         }
 
         // Kiểm tra nếu đã xử lý rồi thì bỏ qua
-        if (payment.getStatus() == PaymentStatus.SUCCESS
+        if (payment.getStatus() == PaymentStatus.PAID
+                || payment.getStatus() == PaymentStatus.FAILED
                 || payment.getTransactionId() != null) {
 //            return ApiResponse.builder()
 //                    .result(Map.of("RspCode", "02", "Message", "Order already confirmed"))
@@ -295,10 +299,11 @@ public class PaymentController {
         String responseCode = callback.getVnp_ResponseCode();
 
         if ("00".equals(responseCode)) {
-            payment.setStatus(PaymentStatus.SUCCESS);
+            payment.setStatus(PaymentStatus.PAID);
             payment.setTransactionId(callback.getVnp_TransactionNo());
             payment.setPaidAt(parsePayDate(callback.getVnp_PayDate()));
             order.setStatus(OrderStatus.CONFIRMED);
+            inventoryLockService.deductLocked(order);
 
             paymentRepository.save(payment);
             orderRepository.save(order);
@@ -312,7 +317,12 @@ public class PaymentController {
             return ResponseEntity.ok(Map.of("RspCode", "00", "Message", "Success"));
         } else {
             payment.setStatus(PaymentStatus.FAILED);
+            payment.setTransactionId(callback.getVnp_TransactionNo());
+            payment.setFailureReason(getResponseCodeMessage(responseCode));
+            order.setStatus(OrderStatus.CANCELLED);
+            inventoryLockService.releaseLocked(order);
             paymentRepository.save(payment);
+            orderRepository.save(order);
 //            return ApiResponse.builder()
 //                    .result(Map.of("RspCode", "00", "Message", "Payment failed, order updated"))
 ////                    .message("Invalid signature")

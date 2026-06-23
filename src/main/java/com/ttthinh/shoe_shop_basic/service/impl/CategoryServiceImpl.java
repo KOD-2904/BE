@@ -11,6 +11,9 @@ import com.ttthinh.shoe_shop_basic.repository.jpa.CategoryRepository;
 import com.ttthinh.shoe_shop_basic.service.CategoryService;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -24,6 +27,7 @@ public class CategoryServiceImpl implements CategoryService {
     private final CategoryMapper categoryMapper;
 
     @Override
+    @CacheEvict(value = "categories", allEntries = true)
     public CategoryResponse createCategory(CategoryRequest request) {
         Category category = new Category();
         category.setName(request.getName());
@@ -50,11 +54,18 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Cacheable(value = "categories", key = "'all'")
     public List<CategoryResponse> getAllCategories() {
         return categoryMapper.toCategoryResponseList(categoryRepository.findAll());
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = "categories", allEntries = true),
+            @CacheEvict(value = "categoryDetail", key = "#categoryId"),
+            @CacheEvict(value = "products", allEntries = true),
+            @CacheEvict(value = "productDetail", allEntries = true)
+    })
     public CategoryResponse update(String categoryId, CategoryRequest request) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
@@ -65,6 +76,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Cacheable(value = "categoryDetail", key = "#id")
     public CategoryResponse getCategory(String id) {
         return categoryMapper.toCategoryResponse(categoryRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND)));

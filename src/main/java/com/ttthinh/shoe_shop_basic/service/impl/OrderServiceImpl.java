@@ -23,6 +23,7 @@ import com.ttthinh.shoe_shop_basic.repository.jpa.CartRepository;
 import com.ttthinh.shoe_shop_basic.repository.jpa.InventoryRepository;
 import com.ttthinh.shoe_shop_basic.repository.jpa.OrderRepository;
 import com.ttthinh.shoe_shop_basic.repository.jpa.PaymentRepository;
+import com.ttthinh.shoe_shop_basic.service.InventoryLockService;
 import com.ttthinh.shoe_shop_basic.service.shipping.GHNShippingService;
 import com.ttthinh.shoe_shop_basic.service.impl.payment.VNPayService;
 import com.ttthinh.shoe_shop_basic.service.OrderService;
@@ -54,6 +55,7 @@ public class OrderServiceImpl
     private final GHNShippingService ghnShippingService;    // thêm
     private final OrderMapper orderMapper;
     private final VNPayService vnPayService;
+    private final InventoryLockService inventoryLockService;
 
     // ==================== PHƯƠNG THỨC PUBLIC ====================
 
@@ -95,7 +97,7 @@ public class OrderServiceImpl
         );
 
         // 6. Trừ kho
-        deductInventory(selectedItems);
+        inventoryLockService.lockCartItems(selectedItems);
 
         // 7. Lưu order
         Order savedOrder = orderRepository.save(order);
@@ -103,6 +105,12 @@ public class OrderServiceImpl
         // 8. Tạo payment record
         Payment payment = createPaymentForOrder(savedOrder, request.getPaymentMethod());
         paymentRepository.save(payment);
+
+        if (request.getPaymentMethod() == PaymentMethod.COD) {
+            inventoryLockService.deductLocked(savedOrder);
+            savedOrder.setStatus(OrderStatus.CONFIRMED);
+            orderRepository.save(savedOrder);
+        }
 
         // 9. Xóa các cart item đã chọn
         cartItemRepository.deleteAll(selectedItems);
@@ -137,12 +145,13 @@ public class OrderServiceImpl
     public OrderResponse buyNow(UserAccount user, BuyNowRequest request) {
         // 1. Kiểm tra inventory
         Inventory inventory = inventoryRepository
-                .findByVariantSizeId(request.getVariantSizeId())
+                .findLockedByVariantSizeId(request.getVariantSizeId())
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_VARIANT_NOT_FOUND));
 
-        if (request.getQuantity() > inventory.getQuantity()) {
+        if (request.getQuantity() > inventory.getAvailableQuantity()) {
             throw new AppException(ErrorCode.OUT_OF_STOCK);
         }
+        inventoryLockService.lockVariantSize(request.getVariantSizeId(), request.getQuantity());
 
         // 2. Lấy địa chỉ
         Address address = getAndValidateAddress(user, request.getAddressId());
@@ -170,7 +179,6 @@ public class OrderServiceImpl
         order.setNote(request.getNote());
 
         // Trừ kho
-        inventory.setQuantity(inventory.getQuantity() - request.getQuantity());
 
         // Tạo order item
         OrderItem orderItem = OrderItem.builder()
@@ -192,6 +200,11 @@ public class OrderServiceImpl
         // Tạo payment
         Payment payment = createPaymentForOrder(savedOrder, request.getPaymentMethod());
         paymentRepository.save(payment);
+        if (request.getPaymentMethod() == PaymentMethod.COD) {
+            inventoryLockService.deductLocked(savedOrder);
+            savedOrder.setStatus(OrderStatus.CONFIRMED);
+            orderRepository.save(savedOrder);
+        }
         var orderResponse = orderMapper.toOrderResponse(savedOrder);
         orderResponse.setPaymentId(payment.getId());
         // Xử lý VNPAY
@@ -325,10 +338,10 @@ public class OrderServiceImpl
 
         for (CartItem item : items) {
             Inventory inventory = inventoryRepository
-                    .findByVariantSize(item.getVariantSize())
+                    .findLockedByVariantSizeId(item.getVariantSize().getId())
                     .orElseThrow(() -> new AppException(ErrorCode.OUT_OF_STOCK));
 
-            if (item.getQuantity() > inventory.getQuantity()) {
+            if (item.getQuantity() > inventory.getAvailableQuantity()) {
                 throw new AppException(ErrorCode.OUT_OF_STOCK);
             }
 
@@ -431,25 +444,12 @@ public class OrderServiceImpl
     }
 
     /**
-     * Trừ kho
-     */
-    private void deductInventory(List<CartItem> items) {
-        for (CartItem item : items) {
-            Inventory inventory = inventoryRepository
-                    .findByVariantSize(item.getVariantSize())
-                    .orElseThrow(() -> new AppException(ErrorCode.OUT_OF_STOCK));
-
-            inventory.setQuantity(inventory.getQuantity() - item.getQuantity());
-        }
-    }
-
-    /**
      * Tạo payment record
      */
     private Payment createPaymentForOrder(Order order, PaymentMethod paymentMethod) {
         Payment payment = Payment.builder()
                 .order(order)
-                .status(PaymentStatus.PENDING)
+                .status(PaymentStatus.UNPAID)
                 .method(paymentMethod)
                 .amount(order.getFinalTotal())  // Dùng final total (đã bao gồm ship)
                 .build();

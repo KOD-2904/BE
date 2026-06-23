@@ -16,6 +16,10 @@ import com.ttthinh.shoe_shop_basic.repository.jpa.ProductRepository;
 import com.ttthinh.shoe_shop_basic.service.ProductService;
 import com.ttthinh.shoe_shop_basic.service.image.ImageUploadQueueService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -25,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
@@ -33,6 +38,7 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final ImageUploadQueueService imageUploadQueueService;
     @Override
+    @CacheEvict(value = "products", allEntries = true)
     public Product addProduct(ProductRequest productRequest) {
         Brand brand = null;
         if (productRequest.getBrandId() != null && !productRequest.getBrandId().isBlank()) {
@@ -81,8 +87,11 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "products", key = "'all'")
     public List<ProductResponse> getAllProducts() {
-        return productMapper.toProductResponse(productRepository.findAll());
+        var result = productRepository.findAll();
+        log.warn("Queried all products");
+        return productMapper.toProductResponse(result);
     }
 
     @Override
@@ -97,6 +106,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "products", allEntries = true)
     public ProductResponse createProductWithImage(ProductRequest productRequest, List<MultipartFile> images, Integer primaryIndex) {
         Product product = addProduct(productRequest);
         if (images == null || images.isEmpty()) {
@@ -108,6 +118,10 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "products", allEntries = true),
+            @CacheEvict(value = "productDetail", key = "#productId")
+    })
     public ProductResponse addProductImages(
             List<MultipartFile> images,
             String productId,
@@ -127,7 +141,9 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "productDetail", key = "#productId")
     public ProductResponse getProduct(String productId) {
+        log.warn("Queried product");
         return productMapper.toProductResponse(productRepository.findById(productId)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND)
                 ));

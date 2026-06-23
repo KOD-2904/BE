@@ -79,7 +79,7 @@ public class CartServiceImpl implements CartService {
         Inventory inventory = inventoryRepository.findByVariantSize(variantSize)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_VARIANT_NOT_FOUND));
 
-        if (inventory.getQuantity() < request.getQuantity()) {
+        if (inventory.getAvailableQuantity() < request.getQuantity()) {
             throw new AppException(ErrorCode.OUT_OF_STOCK);
         }
 
@@ -89,7 +89,7 @@ public class CartServiceImpl implements CartService {
 
         if (item != null) {
             int newQty = item.getQuantity() + request.getQuantity();
-            if (newQty > inventory.getQuantity()) {
+            if (newQty > inventory.getAvailableQuantity()) {
                 throw new AppException(ErrorCode.OUT_OF_STOCK);
             }
             item.setQuantity(newQty);
@@ -125,7 +125,7 @@ public class CartServiceImpl implements CartService {
         Inventory inventory = inventoryRepository.findByVariantSize(item.getVariantSize())
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_VARIANT_NOT_FOUND));
 
-        if (quantity > inventory.getQuantity()) {
+        if (quantity > inventory.getAvailableQuantity()) {
             throw new AppException(ErrorCode.OUT_OF_STOCK);
         }
 

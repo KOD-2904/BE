@@ -24,6 +24,10 @@ public class GHNShippingService {
 
     @Cacheable(value = "shippingFee", key = "#request.toDistrictId + '_' + #request.toWardCode + '_' + #request.weight")
     public Integer calculateShippingFee(ShippingFeeRequest request) {
+        if (ghnConfig.isMockEnabled()) {
+            return 30000;
+        }
+
         String url = ghnConfig.getApiUrl() + "/shipping-order/fee";
 
         HttpHeaders headers = new HttpHeaders();

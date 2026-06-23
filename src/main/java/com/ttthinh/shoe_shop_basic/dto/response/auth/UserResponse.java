@@ -13,7 +13,7 @@ public class UserResponse {
     private String id;
     private String email;
     private String phone;
-    private String provider;
+    private Set<String> providers;
     private boolean emailVerified;
     private String status;
     private Set<String> roles;

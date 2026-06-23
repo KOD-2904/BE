@@ -37,6 +37,12 @@ public class GHNConfig {
     @Value("${ghn.api-url}")
     private String apiUrl;
 
+    @Value("${ghn.mock-enabled:${GHN_MOCK_ENABLE:false}}")
+    private boolean mockEnabled;
+
+    @Value("${ghn.master-data-mock-enabled:false}")
+    private boolean masterDataMockEnabled;
+
     public String getFullAddress() {
         return fromDetailAddress + ", " + fromWardName + ", " + fromDistrictName + ", " + fromProvinceName;
     }

@@ -31,6 +31,17 @@ public class Inventory extends BaseEntity {
 
     Integer quantity;
 
+    @Builder.Default
+    Integer quantityLocked = 0;
+
     @Version
     Long version;
+
+    public int getAvailableQuantity() {
+        return nullToZero(quantity) - nullToZero(quantityLocked);
+    }
+
+    private int nullToZero(Integer value) {
+        return value == null ? 0 : value;
+    }
 }

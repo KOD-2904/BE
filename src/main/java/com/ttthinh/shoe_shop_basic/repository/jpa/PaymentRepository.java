@@ -5,6 +5,7 @@ import com.ttthinh.shoe_shop_basic.entity.payment.Payment;
 import com.ttthinh.shoe_shop_basic.enums.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,6 +15,7 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
     Optional<Payment> findByOrderIdAndStatus(String orderId, PaymentStatus status);
     Optional<Payment> findTopByOrderIdAndStatusOrderByCreatedAtDesc(String orderId, PaymentStatus status);
     boolean existsByOrderIdAndStatus(String orderId, PaymentStatus status);
+    boolean existsByOrderIdAndStatusIn(String orderId, Collection<PaymentStatus> statuses);
 
     Payment findByOrder(Order order);
     List<Payment> findPaymentByStatus(PaymentStatus status);

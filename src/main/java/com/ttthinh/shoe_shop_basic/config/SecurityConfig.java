@@ -59,6 +59,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, PUBLIC_POST_ENDPOINTS).permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/verify-email").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/ghn/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/products/getProducts", "/products/getProduct", "/variants", "/variants/product/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/payment/**").permitAll()

@@ -76,7 +76,7 @@ public class VariantController {
                 .build();
     }
     @PostMapping(
-            value = "/variants/{variantId}/images",
+            value = "/{variantId}/images",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")

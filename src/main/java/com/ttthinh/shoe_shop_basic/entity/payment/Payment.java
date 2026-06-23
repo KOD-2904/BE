@@ -9,7 +9,6 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Entity
@@ -49,7 +48,7 @@ public class Payment extends BaseEntity {
     private LocalDateTime expiredAt;
 
     public boolean isSuccess() {
-        return PaymentStatus.SUCCESS.equals(this.status);
+        return PaymentStatus.PAID.equals(this.status);
     }
     public boolean isExpired() {
         return expiredAt != null && LocalDateTime.now().isAfter(expiredAt);

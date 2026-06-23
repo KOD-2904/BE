@@ -16,6 +16,7 @@ public class CartItemResponse {
     private String variantSizeId;
 
     private String productName;
+    private String imageUrl;
     private String brand;
     private String category;
     private String size;

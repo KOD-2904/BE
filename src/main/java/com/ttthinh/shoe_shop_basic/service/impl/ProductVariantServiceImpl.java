@@ -15,6 +15,9 @@ import com.ttthinh.shoe_shop_basic.repository.jpa.ProductVariantRepository;
 import com.ttthinh.shoe_shop_basic.service.ProductVariantService;
 import com.ttthinh.shoe_shop_basic.service.image.ImageUploadQueueService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,6 +35,10 @@ public class ProductVariantServiceImpl implements ProductVariantService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "variants", allEntries = true),
+            @CacheEvict(value = "variantsByProduct", key = "#result.productId")
+    })
     public ProductVariantResponse addVariantImages(List<MultipartFile> images, String variantId, Integer primaryIndex) {
         ProductVariant variant = variantRepository.findById(variantId)
                 .orElseThrow(()-> new AppException(ErrorCode.PRODUCT_VARIANT_NOT_FOUND));
@@ -53,6 +60,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "variants", key = "#id")
     public ProductVariantResponse getProductVariant(String id) {
         ProductVariant productVariant = variantRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_VARIANT_NOT_FOUND));
@@ -61,18 +69,24 @@ public class ProductVariantServiceImpl implements ProductVariantService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "variants", key = "'all'")
     public List<ProductVariantResponse> getAllProductVariant() {
         return productVariantMapper.toProductVariantsResponse(variantRepository.findAll());
     }
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "variantsByProduct", key = "#productId")
     public List<ProductVariantResponse> getProductVariantByProduct(String productId) {
         return productVariantMapper.toProductVariantsResponse(variantRepository.findByProductId(productId));
     }
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "variants", allEntries = true),
+            @CacheEvict(value = "variantsByProduct", key = "#result.productId")
+    })
     public ProductVariantResponse addProductVariant(ProductVariantRequest productVariantRequest) {
         Product product = productRepository.findById(productVariantRequest.getProductId())
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
@@ -89,6 +103,10 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     }
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "variants", allEntries = true),
+            @CacheEvict(value = "variantsByProduct", allEntries = true)
+    })
     public List<ProductVariantResponse> addProductVariants(
             List<ProductVariantRequest> requests
     ) {

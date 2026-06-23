@@ -69,9 +69,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     );
             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-            if (SecurityContextHolder.getContext().getAuthentication() == null) {
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            }
+            SecurityContextHolder.getContext().setAuthentication(authToken);
         } catch (ExpiredJwtException e) {
             handleJwtError(response, ErrorCode.TOKEN_EXPIRED);
             return;

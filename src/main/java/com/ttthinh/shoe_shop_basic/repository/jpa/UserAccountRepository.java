@@ -9,14 +9,17 @@ import java.util.Optional;
 
 @Repository
 public interface UserAccountRepository extends JpaRepository<UserAccount, String> {
-    @EntityGraph(attributePaths = "roles")
+    @EntityGraph(attributePaths = {"roles", "providers"})
     Optional<UserAccount> findByEmail(String email);
 
-    @EntityGraph(attributePaths = "roles")
+    @EntityGraph(attributePaths = {"roles", "providers"})
     Optional<UserAccount> findByPhone(String phone);
 
-    @EntityGraph(attributePaths = "roles")
+    @EntityGraph(attributePaths = {"roles", "providers"})
     Optional<UserAccount> findByEmailOrPhone(String email, String phone);
+
+    @EntityGraph(attributePaths = {"roles", "providers"})
+    Optional<UserAccount> findWithRolesAndProvidersById(String id);
 
     boolean existsByEmail(String email);
 

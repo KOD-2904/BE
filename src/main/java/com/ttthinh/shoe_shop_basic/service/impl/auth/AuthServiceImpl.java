@@ -41,6 +41,8 @@ import org.springframework.web.client.RestClientException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -79,7 +81,7 @@ public class AuthServiceImpl implements AuthService {
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
             UserAccount userAccount = userDetails.getUser();
 
-            if (userAccount.getProvider() != AuthProvider.LOCAL) {
+            if (!userAccount.hasProvider(AuthProvider.LOCAL)) {
                 throw new AppException(ErrorCode.INVALID_LOGIN_PROVIDER);
             }
             if (userAccount.getStatus() != UserStatus.ACTIVE || !userAccount.isEmailVerified()) {
@@ -95,12 +97,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse loginWithGoogle(GoogleLoginRequest request, HttpServletRequest httpRequest) {
         GoogleProfile profile = fetchGoogleProfile(request);
-        UserAccount userAccount = userAccountRepository.findByEmail(profile.email())
-                .orElseGet(() -> createGoogleUser(profile.email()));
-
-        if (userAccount.getProvider() != AuthProvider.GOOGLE) {
-            throw new AppException(ErrorCode.INVALID_LOGIN_PROVIDER);
-        }
+        UserAccount userAccount = getOrCreateGoogleUser(profile);
 
         CustomUserDetails userDetails = new CustomUserDetails(userAccount);
         Authentication authentication = new UsernamePasswordAuthenticationToken(
@@ -192,20 +189,21 @@ public class AuthServiceImpl implements AuthService {
         return AuthResponse.builder()
                 .email(userAccount.getEmail())
                 .phone(userAccount.getPhone())
-                .provider(userAccount.getProvider().name().toLowerCase())
+                .providers(mapProviders(userAccount.getProviders()))
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .authenticated(true)
                 .build();
     }
 
-    private UserAccount createGoogleUser(String email) {
+    private UserAccount createGoogleUser(GoogleProfile profile) {
         Role roleUser = roleRepository.findByCode("ROLE_USER")
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXIST));
 
         UserAccount user = new UserAccount();
-        user.setEmail(email);
-        user.setProvider(AuthProvider.GOOGLE);
+        user.setEmail(profile.email());
+        user.setGoogleId(profile.googleId());
+        user.addProvider(AuthProvider.GOOGLE);
         user.setEmailVerified(true);
         user.setStatus(UserStatus.ACTIVE);
 
@@ -214,6 +212,20 @@ public class AuthServiceImpl implements AuthService {
         user.setRoles(roles);
 
         return userAccountRepository.save(user);
+    }
+
+    private UserAccount getOrCreateGoogleUser(GoogleProfile profile) {
+        return userAccountRepository.findByEmail(profile.email())
+                .map(user -> {
+                    user.addProvider(AuthProvider.GOOGLE);
+                    if (user.getGoogleId() == null || user.getGoogleId().isBlank()) {
+                        user.setGoogleId(profile.googleId());
+                    }
+                    user.setEmailVerified(true);
+                    user.setStatus(UserStatus.ACTIVE);
+                    return userAccountRepository.save(user);
+                })
+                .orElseGet(() -> createGoogleUser(profile));
     }
 
     private GoogleProfile fetchGoogleProfile(GoogleLoginRequest request) {
@@ -254,7 +266,9 @@ public class AuthServiceImpl implements AuthService {
                 throw new AppException(ErrorCode.GOOGLE_AUTH_FAILED);
             }
 
-            return new GoogleProfile(email);
+            String googleId = getStringValue(userInfo, "sub");
+
+            return new GoogleProfile(email, googleId);
         } catch (RestClientException ex) {
             log.warn("Google OAuth request failed: {}", ex.getMessage());
             throw new AppException(ErrorCode.GOOGLE_AUTH_FAILED);
@@ -266,6 +280,15 @@ public class AuthServiceImpl implements AuthService {
         return value instanceof String text ? text : null;
     }
 
-    private record GoogleProfile(String email) {
+    private Set<String> mapProviders(Set<AuthProvider> providers) {
+        if (providers == null) {
+            return Set.of();
+        }
+        return providers.stream()
+                .map(provider -> provider.name().toLowerCase())
+                .collect(Collectors.toSet());
+    }
+
+    private record GoogleProfile(String email, String googleId) {
     }
 }

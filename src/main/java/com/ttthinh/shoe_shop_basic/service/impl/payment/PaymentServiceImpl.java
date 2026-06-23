@@ -6,7 +6,9 @@ import com.ttthinh.shoe_shop_basic.enums.OrderStatus;
 import com.ttthinh.shoe_shop_basic.enums.PaymentStatus;
 import com.ttthinh.shoe_shop_basic.exception.AppException;
 import com.ttthinh.shoe_shop_basic.exception.ErrorCode;
+import com.ttthinh.shoe_shop_basic.repository.jpa.OrderRepository;
 import com.ttthinh.shoe_shop_basic.repository.jpa.PaymentRepository;
+import com.ttthinh.shoe_shop_basic.service.InventoryLockService;
 import com.ttthinh.shoe_shop_basic.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +16,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -24,6 +25,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
+    private final OrderRepository orderRepository;
+    private final InventoryLockService inventoryLockService;
 
     @Override
     public void updatePaymentStatus(String id, PaymentStatus newStatus) {
@@ -39,7 +42,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         payment.setStatus(newStatus);
 
-        if (newStatus == PaymentStatus.SUCCESS) {
+        if (newStatus == PaymentStatus.PAID) {
             payment.setPaidAt(LocalDateTime.now());
         }
 
@@ -50,17 +53,17 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public Optional<Payment> findSuccessfulPaymentByOrderId(String orderId) {
-        return paymentRepository.findByOrderIdAndStatus(orderId, PaymentStatus.SUCCESS);
+        return paymentRepository.findByOrderIdAndStatus(orderId, PaymentStatus.PAID);
     }
 
     @Override
     public boolean hasSuccessfulPayment(String orderId) {
-        return paymentRepository.existsByOrderIdAndStatus(orderId, PaymentStatus.SUCCESS);
+        return paymentRepository.existsByOrderIdAndStatus(orderId, PaymentStatus.PAID);
     }
 
     @Override
     public long countFailedPayments(String orderId) {
-        return paymentRepository.findPaymentById(orderId).stream()
+        return paymentRepository.findByOrderId(orderId).stream()
                 .filter(p -> p.getStatus() == PaymentStatus.FAILED)
                 .count();
     }
@@ -78,14 +81,11 @@ public class PaymentServiceImpl implements PaymentService {
     private boolean isValidStatusTransition(PaymentStatus oldStatus, PaymentStatus newStatus) {
         // Define valid transitions
         return switch (oldStatus) {
-            case PENDING -> newStatus == PaymentStatus.PROCESSING ||
+            case UNPAID -> newStatus == PaymentStatus.PAID ||
                     newStatus == PaymentStatus.FAILED;
-            case PROCESSING -> newStatus == PaymentStatus.SUCCESS ||
-                    newStatus == PaymentStatus.FAILED;
-            case SUCCESS -> newStatus == PaymentStatus.REFUNDED; // Only can refund
+            case PAID -> newStatus == PaymentStatus.REFUNDED; // Only can refund
             case FAILED -> false; // Failed payments cannot change
             case REFUNDED -> false;
-            default -> false;
         };
     }
     @Scheduled(fixedDelay = 120000) // Run every 2 minute
@@ -93,8 +93,7 @@ public class PaymentServiceImpl implements PaymentService {
     public void handleExpiredPayments() {
         log.info("Checking for expired payments");
 
-        List<Payment> pendingPayments = paymentRepository.findPaymentByStatus(PaymentStatus.PENDING);
-        Instant now = Instant.now();
+        List<Payment> pendingPayments = paymentRepository.findPaymentByStatus(PaymentStatus.UNPAID);
 
         for (Payment payment : pendingPayments) {
             if (payment.isExpired()) {
@@ -113,12 +112,15 @@ public class PaymentServiceImpl implements PaymentService {
         Order order = payment.getOrder();
         if (!hasSuccessfulPayment(order.getId())) {
             // Nếu không còn payment nào active, cancel order
-            boolean hasActivePayment = order.getPayments().stream()
-                    .anyMatch(p -> p.getStatus() == PaymentStatus.PENDING ||
-                            p.getStatus() == PaymentStatus.PROCESSING);
+            boolean hasActivePayment = paymentRepository.existsByOrderIdAndStatusIn(
+                    order.getId(),
+                    List.of(PaymentStatus.UNPAID)
+            );
 
             if (!hasActivePayment) {
-                order.setStatus(OrderStatus.CANCELED);
+                inventoryLockService.releaseLocked(order);
+                order.setStatus(OrderStatus.CANCELLED);
+                orderRepository.save(order);
                 // Cần orderRepository.save(order) - có thể inject OrderRepository
             }
         }

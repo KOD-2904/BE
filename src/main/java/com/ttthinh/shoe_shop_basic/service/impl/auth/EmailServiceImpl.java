@@ -9,6 +9,8 @@ import com.ttthinh.shoe_shop_basic.repository.jpa.EmailVerifyRepository;
 import com.ttthinh.shoe_shop_basic.repository.jpa.UserAccountRepository;
 import com.ttthinh.shoe_shop_basic.service.auth.MailService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -39,6 +41,10 @@ public class EmailServiceImpl implements MailService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = "users", allEntries = true),
+            @CacheEvict(value = "userProfile", allEntries = true)
+    })
     public void verifyEmail(String token) {
         EmailVerifyToken evt = emailVerifyRepository.findByToken(token)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_VALID_TOKEN));

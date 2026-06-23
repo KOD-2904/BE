@@ -2,7 +2,6 @@ package com.ttthinh.shoe_shop_basic.entity.order;
 
 import com.ttthinh.shoe_shop_basic.entity.BaseEntity;
 import com.ttthinh.shoe_shop_basic.entity.auth.UserAccount;
-import com.ttthinh.shoe_shop_basic.entity.payment.Payment;
 import com.ttthinh.shoe_shop_basic.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -37,9 +36,6 @@ public class Order extends BaseEntity {
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     Set<OrderItem> items = new HashSet<>();
-
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
-    Set<Payment> payments;
 
     private String addressId;           // ID địa chỉ giao hàng
     private String shippingAddress;   // full address text (backup)

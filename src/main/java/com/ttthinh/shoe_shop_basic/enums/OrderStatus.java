@@ -4,40 +4,49 @@ public enum OrderStatus {
 
     PENDING,
     CONFIRMED,
-    SHIPPED,
+    PACKING,
+    READY_TO_SHIP,
+    SHIPPING,
     DELIVERED,
-    COMPLETED,
-    CANCELED;
+    CANCELLED,
+    FAILED,
+    RETURNED;
 
     public boolean canTransitionTo(OrderStatus next) {
         return switch (this) {
 
             case PENDING ->
-                    next == CONFIRMED || next == CANCELED;
+                    next == CONFIRMED || next == CANCELLED;
 
             case CONFIRMED ->
-                    next == SHIPPED || next == CANCELED;
+                    next == PACKING || next == CANCELLED;
 
-            case SHIPPED ->
-                    next == DELIVERED;
+            case PACKING ->
+                    next == READY_TO_SHIP;
 
-            case DELIVERED ->
-                    next == COMPLETED;
+            case READY_TO_SHIP ->
+                    next == SHIPPING;
 
-            case COMPLETED, CANCELED ->
+            case SHIPPING ->
+                    next == DELIVERED || next == FAILED;
+
+            case FAILED ->
+                    next == SHIPPING || next == RETURNED;
+
+            case DELIVERED, CANCELLED, RETURNED ->
                     false;
         };
     }
 
     public boolean userCanCancel() {
-        return this == PENDING || this == CONFIRMED;
+        return this == PENDING;
     }
 
     public boolean adminCanCancel() {
-        return this != DELIVERED && this != COMPLETED && this != CANCELED;
+        return this == PENDING || this == CONFIRMED;
     }
 
     public boolean isFinal() {
-        return this == COMPLETED || this == CANCELED;
+        return this == DELIVERED || this == CANCELLED || this == RETURNED;
     }
 }

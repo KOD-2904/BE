@@ -22,7 +22,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -38,8 +40,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final RedisTokenService redisTokenService;
     private final AuthCookieService authCookieService;
 
-    @Value("${app.frontend-url}")
-    private String frontendUrl;
+    @Value("${app.oauth2-success-url}")
+    private String oauth2SuccessUrl;
 
     @Override
     public void onAuthenticationSuccess(
@@ -47,44 +49,78 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             HttpServletResponse response,
             Authentication authentication
     ) throws IOException, ServletException {
-        OAuth2User oauthUser = (OAuth2User) authentication.getPrincipal();
-        String email = oauthUser.getAttribute("email");
-        Boolean emailVerified = oauthUser.getAttribute("email_verified");
+        try {
+            OAuth2User oauthUser = (OAuth2User) authentication.getPrincipal();
+            String email = oauthUser.getAttribute("email");
+            String googleId = oauthUser.getAttribute("sub");
+            Boolean emailVerified = oauthUser.getAttribute("email_verified");
 
-        if (email == null || email.isBlank() || !Boolean.TRUE.equals(emailVerified)) {
-            throw new AppException(ErrorCode.GOOGLE_AUTH_FAILED);
+            if (email == null || email.isBlank() || !Boolean.TRUE.equals(emailVerified)) {
+                redirectWithError(request, response, ErrorCode.GOOGLE_AUTH_FAILED);
+                return;
+            }
+
+            UserAccount user = getOrCreateGoogleUser(email, googleId);
+
+            CustomUserDetails userDetails = new CustomUserDetails(user);
+            Authentication jwtAuthentication = new UsernamePasswordAuthenticationToken(
+                    userDetails,
+                    null,
+                    userDetails.getAuthorities()
+            );
+
+            String deviceId = request.getRemoteAddr();
+            String refreshToken = jwtService.generateRefreshToken(jwtAuthentication, deviceId);
+
+            redisTokenService.saveRefreshToken(refreshToken, deviceId, request);
+            authCookieService.addRefreshTokenCookie(response, refreshToken);
+            clearAuthenticationAttributes(request);
+            new SecurityContextLogoutHandler().logout(request, response, authentication);
+
+            getRedirectStrategy().sendRedirect(request, response, oauth2SuccessUrl);
+        } catch (AppException ex) {
+            redirectWithError(request, response, ex.getErrorCode());
         }
-
-        UserAccount user = userAccountRepository.findByEmail(email)
-                .orElseGet(() -> createGoogleUser(email));
-
-        if (user.getProvider() != AuthProvider.GOOGLE) {
-            throw new AppException(ErrorCode.INVALID_LOGIN_PROVIDER);
-        }
-
-        CustomUserDetails userDetails = new CustomUserDetails(user);
-        Authentication jwtAuthentication = new UsernamePasswordAuthenticationToken(
-                userDetails,
-                null,
-                userDetails.getAuthorities()
-        );
-
-        String deviceId = request.getRemoteAddr();
-        String refreshToken = jwtService.generateRefreshToken(jwtAuthentication, deviceId);
-
-        redisTokenService.saveRefreshToken(refreshToken, deviceId, request);
-        authCookieService.addRefreshTokenCookie(response, refreshToken);
-
-        getRedirectStrategy().sendRedirect(request, response, frontendUrl);
     }
 
-    private UserAccount createGoogleUser(String email) {
+    private UserAccount getOrCreateGoogleUser(String email, String googleId) {
+        return userAccountRepository.findByEmail(email)
+                .map(user -> {
+                    user.addProvider(AuthProvider.GOOGLE);
+                    if (user.getGoogleId() == null || user.getGoogleId().isBlank()) {
+                        user.setGoogleId(googleId);
+                    }
+                    user.setEmailVerified(true);
+                    user.setStatus(UserStatus.ACTIVE);
+                    return userAccountRepository.save(user);
+                })
+                .orElseGet(() -> createGoogleUser(email, googleId));
+    }
+
+    private void redirectWithError(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            ErrorCode errorCode
+    ) throws IOException {
+        String redirectUrl = UriComponentsBuilder
+                .fromUriString(oauth2SuccessUrl)
+                .queryParam("oauth2Error", errorCode.name())
+                .queryParam("message", errorCode.getMessage())
+                .build()
+                .encode()
+                .toUriString();
+
+        getRedirectStrategy().sendRedirect(request, response, redirectUrl);
+    }
+
+    private UserAccount createGoogleUser(String email, String googleId) {
         Role roleUser = roleRepository.findByCode("ROLE_USER")
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXIST));
 
         UserAccount user = new UserAccount();
         user.setEmail(email);
-        user.setProvider(AuthProvider.GOOGLE);
+        user.setGoogleId(googleId);
+        user.addProvider(AuthProvider.GOOGLE);
         user.setEmailVerified(true);
         user.setStatus(UserStatus.ACTIVE);
         user.setRoles(new HashSet<>(List.of(roleUser)));

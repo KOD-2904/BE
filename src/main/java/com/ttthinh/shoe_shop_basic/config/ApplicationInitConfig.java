@@ -52,7 +52,7 @@ public class ApplicationInitConfig {
                 admin.setEmail(adminEmail);
                 admin.setPassword(passwordEncoder.encode(adminPassword));
                 admin.setPhone("0123456789");
-                admin.setProvider(AuthProvider.LOCAL);
+                admin.addProvider(AuthProvider.LOCAL);
                 admin.setStatus(UserStatus.ACTIVE);
                 admin.setEmailVerified(true);
 
@@ -72,7 +72,7 @@ public class ApplicationInitConfig {
                 user.setEmail(demoEmail);
                 user.setPassword(passwordEncoder.encode(demoPassword));
                 user.setPhone("0987654321");
-                user.setProvider(AuthProvider.LOCAL);
+                user.addProvider(AuthProvider.LOCAL);
                 user.setStatus(UserStatus.ACTIVE);
                 user.setEmailVerified(true);
 

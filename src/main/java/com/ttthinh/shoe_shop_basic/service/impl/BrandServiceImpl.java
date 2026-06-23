@@ -11,6 +11,9 @@ import com.ttthinh.shoe_shop_basic.repository.jpa.BrandRepository;
 import com.ttthinh.shoe_shop_basic.service.BrandService;
 import com.ttthinh.shoe_shop_basic.service.image.ImageUploadQueueService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -25,6 +28,7 @@ public class BrandServiceImpl implements BrandService {
     private final BrandMapper brandMapper;
     private final ImageUploadQueueService imageUploadQueueService;
     @Override
+    @CacheEvict(value = "brands", allEntries = true)
     public Brand create(BrandRequest brandRequest) {
         Brand brand = new Brand();
         brand.setName(brandRequest.getName());
@@ -33,6 +37,12 @@ public class BrandServiceImpl implements BrandService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = "brands", allEntries = true),
+            @CacheEvict(value = "brandDetail", key = "#id"),
+            @CacheEvict(value = "products", allEntries = true),
+            @CacheEvict(value = "productDetail", allEntries = true)
+    })
     public BrandResponse update(String id, BrandRequest brandRequest) {
         Brand brand = brandRepository.findById(id).orElseThrow(
                 () -> new AppException(ErrorCode.BRAND_NOT_FOUND)
@@ -57,11 +67,16 @@ public class BrandServiceImpl implements BrandService {
     }
 
     @Override
+    @Cacheable(value = "brands", key = "'all'")
     public List<BrandResponse> getAllBrands() {
         return brandMapper.toBrandResponse(brandRepository.findAll());
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = "brands", allEntries = true),
+            @CacheEvict(value = "brandDetail", key = "#brandId")
+    })
     public BrandResponse addBrandImage(MultipartFile image, String brandId) {
         Brand brand = brandRepository.findById(brandId).orElseThrow(
                 () -> new AppException(ErrorCode.BRAND_NOT_FOUND)
@@ -74,6 +89,7 @@ public class BrandServiceImpl implements BrandService {
     }
 
     @Override
+    @CacheEvict(value = "brands", allEntries = true)
     public BrandResponse addBrandWithImage(MultipartFile image, BrandRequest brandRequest) {
         Brand brand = create(brandRequest);
         if(image == null || image.isEmpty()){
@@ -84,6 +100,7 @@ public class BrandServiceImpl implements BrandService {
     }
 
     @Override
+    @Cacheable(value = "brandDetail", key = "#brandId")
     public BrandResponse getBrandById(String brandId) {
         return brandMapper.toBrandResponse(brandRepository.findById(brandId).orElseThrow(
                 () -> new AppException(ErrorCode.BRAND_NOT_FOUND)

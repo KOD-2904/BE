@@ -15,9 +15,13 @@ import com.ttthinh.shoe_shop_basic.repository.jpa.VariantImageRepository;
 import com.ttthinh.shoe_shop_basic.service.CloudinaryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 
@@ -33,6 +37,7 @@ public class ImageUploadWorker {
     private final ProductImageRepository productImageRepository;
     private final VariantImageRepository variantImageRepository;
     private final BrandRepository brandRepository;
+    private final CacheManager cacheManager;
 
     @Async("imageUploadTaskExecutor")
     @Transactional
@@ -54,6 +59,10 @@ public class ImageUploadWorker {
                     .sortOrder(startSortOrder + i)
                     .build());
         }
+        afterCommit(() -> {
+            clearCache("products");
+            evictCache("productDetail", productId);
+        });
         log.info("Queued product image upload completed for product {}", productId);
     }
 
@@ -77,6 +86,11 @@ public class ImageUploadWorker {
                     .sortOrder(startSortOrder + i)
                     .build());
         }
+        afterCommit(() -> {
+            clearCache("variants");
+            evictCache("variantsByProduct", productId);
+            evictCache("variants", variantId);
+        });
         log.info("Queued variant image upload completed for variant {}", variantId);
     }
 
@@ -88,6 +102,10 @@ public class ImageUploadWorker {
         String url = cloudinaryService.upload(file.bytes(), file.originalFilename(), brandFolder(brandId));
         brand.setLogoUrl(url);
         brandRepository.save(brand);
+        afterCommit(() -> {
+            clearCache("brands");
+            evictCache("brandDetail", brandId);
+        });
         log.info("Queued brand logo upload completed for brand {}", brandId);
     }
 
@@ -101,5 +119,32 @@ public class ImageUploadWorker {
 
     private String brandFolder(String brandId) {
         return ROOT_FOLDER + "/brand/" + brandId;
+    }
+
+    private void afterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                action.run();
+            }
+        });
+    }
+
+    private void clearCache(String cacheName) {
+        Cache cache = cacheManager.getCache(cacheName);
+        if (cache != null) {
+            cache.clear();
+        }
+    }
+
+    private void evictCache(String cacheName, Object key) {
+        Cache cache = cacheManager.getCache(cacheName);
+        if (cache != null) {
+            cache.evict(key);
+        }
     }
 }
