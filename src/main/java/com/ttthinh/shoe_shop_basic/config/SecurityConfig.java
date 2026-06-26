@@ -60,10 +60,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, PUBLIC_POST_ENDPOINTS).permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/verify-email").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/ghn/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/webhooks/ghn").permitAll()
                         .requestMatchers(HttpMethod.GET, "/products/getProducts", "/products/getProduct", "/variants", "/variants/product/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/payment/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/payment/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/payment/vnpay-callback", "/api/payment/vnpay-ipn").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/payment/vnpay-ipn").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2

@@ -110,6 +110,9 @@ public class PaymentServiceImpl implements PaymentService {
 
         // Check if we should cancel the order
         Order order = payment.getOrder();
+        if (order.getStatus() != OrderStatus.PENDING) {
+            return;
+        }
         if (!hasSuccessfulPayment(order.getId())) {
             // Nếu không còn payment nào active, cancel order
             boolean hasActivePayment = paymentRepository.existsByOrderIdAndStatusIn(

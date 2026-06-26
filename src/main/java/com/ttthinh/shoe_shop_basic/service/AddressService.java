@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +34,31 @@ public class AddressService {
                 .stream()
                 .map(this::toAddressResponse)
                 .toList();
+    }
+
+    @Transactional
+    public AddressResponse changeDefaultAddress(String addressId, UserAccount userAccount) {
+        Address address = getAddressById(addressId);
+        if (!address.getUserId().equals(userAccount.getId())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED_ACCESS);
+        }
+        addressRepository.clearDefaultByUserId(userAccount.getId());
+        address.setIsDefault(true);
+        return toAddressResponse(addressRepository.save(address));
+    }
+
+    @Transactional
+    public AddressResponse updateAddress(String addressId, AddAddressRequest request, UserAccount userAccount) {
+        Address address = getAddressById(addressId);
+        if (!address.getUserId().equals(userAccount.getId())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED_ACCESS);
+        }
+        if (Boolean.TRUE.equals(request.getIsDefault())) {
+            addressRepository.clearDefaultByUserId(userAccount.getId());
+            address.setIsDefault(true);
+        }
+        applyAddressRequest(address, request);
+        return toAddressResponse(addressRepository.save(address));
     }
 
     @Transactional
@@ -68,6 +94,8 @@ public class AddressService {
         String fullAddress = buildFullAddress(request);
         Address newAddress = Address.builder()
                 .isDefault(request.getIsDefault())
+                .receiverName(request.getReceiverName())
+                .phoneNumber(request.getPhoneNumber())
                 .detailAddress(request.getDetailAddress())
                 .districtId(request.getDistrictId())
                 .provinceId(request.getProvinceId())
@@ -82,18 +110,31 @@ public class AddressService {
         return addressRepository.save(newAddress);
     }
     public String buildFullAddress(AddAddressRequest req) {
-        return String.join(", ",
-                req.getDetailAddress(),
-                req.getWardName(),
-                req.getDistrictName(),
-                req.getProvinceName()
-        );
+        return Stream.of(req.getDetailAddress(), req.getWardName(), req.getDistrictName(), req.getProvinceName())
+                .filter(value -> value != null && !value.isBlank())
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("");
     }
 
-    private AddressResponse toAddressResponse(Address address) {
+    private void applyAddressRequest(Address address, AddAddressRequest request) {
+        address.setReceiverName(request.getReceiverName());
+        address.setPhoneNumber(request.getPhoneNumber());
+        address.setDetailAddress(request.getDetailAddress());
+        address.setProvinceId(request.getProvinceId());
+        address.setDistrictId(request.getDistrictId());
+        address.setWardCode(request.getWardCode());
+        address.setProvinceName(request.getProvinceName());
+        address.setDistrictName(request.getDistrictName());
+        address.setWardName(request.getWardName());
+        address.setFullAddress(buildFullAddress(request));
+    }
+
+    public AddressResponse toAddressResponse(Address address) {
         return AddressResponse.builder()
                 .id(address.getId())
                 .isDefault(address.getIsDefault())
+                .receiverName(address.getReceiverName())
+                .phoneNumber(address.getPhoneNumber())
                 .provinceId(address.getProvinceId())
                 .districtId(address.getDistrictId())
                 .wardCode(address.getWardCode())

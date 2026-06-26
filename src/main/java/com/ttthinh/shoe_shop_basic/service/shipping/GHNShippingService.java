@@ -2,8 +2,14 @@ package com.ttthinh.shoe_shop_basic.service.shipping;
 
 import com.ttthinh.shoe_shop_basic.config.GHNConfig;
 import com.ttthinh.shoe_shop_basic.dto.request.checkout.ShippingFeeRequest;
+import com.ttthinh.shoe_shop_basic.entity.customer.Address;
+import com.ttthinh.shoe_shop_basic.entity.order.Order;
+import com.ttthinh.shoe_shop_basic.entity.order.OrderItem;
+import com.ttthinh.shoe_shop_basic.entity.payment.Payment;
+import com.ttthinh.shoe_shop_basic.enums.PaymentMethod;
 import com.ttthinh.shoe_shop_basic.exception.AppException;
 import com.ttthinh.shoe_shop_basic.exception.ErrorCode;
+import com.ttthinh.shoe_shop_basic.repository.jpa.AddressRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -11,7 +17,9 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -21,6 +29,7 @@ public class GHNShippingService {
     private final GHNConfig ghnConfig;
     private final RestTemplate restTemplate = new RestTemplate();
     private final GHNCacheService ghnCacheService;
+    private final AddressRepository addressRepository;
 
     @Cacheable(value = "shippingFee", key = "#request.toDistrictId + '_' + #request.toWardCode + '_' + #request.weight")
     public Integer calculateShippingFee(ShippingFeeRequest request) {
@@ -82,7 +91,93 @@ public class GHNShippingService {
         }
     }
 
-    public void createOrder(){
+    public String createOrder(Order order, Payment payment) {
+        if (ghnConfig.isMockEnabled()) {
+            return "MOCK-" + order.getId().substring(0, Math.min(order.getId().length(), 12));
+        }
 
+        Address address = addressRepository.findById(order.getAddressId())
+                .orElseThrow(() -> new AppException(ErrorCode.ADDRESS_NOT_FOUND));
+        String url = ghnConfig.getApiUrl() + "/shipping-order/create";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Token", ghnConfig.getToken());
+        headers.set("ShopId", String.valueOf(ghnConfig.getShopId()));
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("payment_type_id", 1);
+        payload.put("required_note", "KHONGCHOXEMHANG");
+        payload.put("note", order.getNote());
+        payload.put("from_name", "Shoe Shop");
+        payload.put("from_phone", "0900000000");
+        payload.put("from_address", ghnConfig.getFullAddress());
+        payload.put("from_ward_name", ghnConfig.getFromWardName());
+        payload.put("from_district_name", ghnConfig.getFromDistrictName());
+        payload.put("from_province_name", ghnConfig.getFromProvinceName());
+        payload.put("to_name", order.getReceiverName());
+        payload.put("to_phone", order.getPhoneNumber() == null ? "0900000000" : order.getPhoneNumber());
+        payload.put("to_address", order.getShippingAddress());
+        payload.put("to_ward_code", address.getWardCode());
+        payload.put("to_district_id", address.getDistrictId());
+        payload.put("cod_amount", payment != null && payment.getMethod() == PaymentMethod.COD
+                ? orderTotal(order).intValue()
+                : 0);
+        payload.put("weight", Math.max(200, order.getItems().stream().mapToInt(item -> item.getQuantity() * 200).sum()));
+        payload.put("length", 20);
+        payload.put("width", 20);
+        payload.put("height", 10);
+        payload.put("service_type_id", 2);
+        payload.put("items", buildItems(order));
+
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    new HttpEntity<>(payload, headers),
+                    Map.class
+            );
+            Map<?, ?> body = response.getBody();
+            if (body == null || !Integer.valueOf(200).equals(body.get("code"))) {
+                log.error("GHN create order error: {}", body);
+                throw new AppException(ErrorCode.SHIPPING_ORDER_FAILED);
+            }
+            Map<?, ?> data = (Map<?, ?>) body.get("data");
+            Object orderCode = data.get("order_code");
+            if (orderCode == null) {
+                throw new AppException(ErrorCode.SHIPPING_ORDER_FAILED);
+            }
+            return orderCode.toString();
+        } catch (AppException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            log.error("Error creating GHN order", exception);
+            throw new AppException(ErrorCode.SHIPPING_ORDER_FAILED);
+        }
+    }
+
+    private BigDecimal orderTotal(Order order) {
+        if (order.getFinalTotal() != null) {
+            return order.getFinalTotal();
+        }
+        BigDecimal productTotal = order.getTotalPrice() != null ? order.getTotalPrice() : BigDecimal.ZERO;
+        BigDecimal shipping = order.getShippingFee() != null ? order.getShippingFee() : BigDecimal.ZERO;
+        BigDecimal discount = order.getDiscountPrice() != null ? order.getDiscountPrice() : BigDecimal.ZERO;
+        return productTotal.add(shipping).subtract(discount).max(BigDecimal.ZERO);
+    }
+
+    private List<Map<String, Object>> buildItems(Order order) {
+        return order.getItems().stream()
+                .map(this::buildItem)
+                .toList();
+    }
+
+    private Map<String, Object> buildItem(OrderItem item) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("name", item.getVariantSize().getVariant().getProduct().getName());
+        payload.put("quantity", item.getQuantity());
+        payload.put("price", item.getUnitPrice().intValue());
+        payload.put("weight", 200);
+        return payload;
     }
 }

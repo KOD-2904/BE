@@ -1,9 +1,13 @@
 package com.ttthinh.shoe_shop_basic.dto.request.checkout;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.NoArgsConstructor;
 
 @lombok.Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ShippingFeeRequest {
     private Integer toDistrictId;
     private String toWardCode;

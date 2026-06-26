@@ -71,6 +71,8 @@ public class VNPayService {
         params.put("vnp_IpAddr", getClientIp(httpServletRequest));
         params.put("vnp_CreateDate", createDate);
         params.put("vnp_ExpireDate", expireDate);
+        log.info("Creating VNPay URL for orderId={}, paymentId={}, amount={}, returnUrl={}, configuredIpnUrl={}",
+                request.getOrderId(), request.getPaymentId(), request.getAmount(), vnPayConfig.getReturnUrl(), vnPayConfig.getIpnUrl());
 
         String[] buildData = VNPayUtil.buildQuery(params).split("\\|\\|");
         String hashData = buildData[0];
@@ -123,6 +125,27 @@ public class VNPayService {
         String expectedHash = VNPayUtil.hmacSHA512(vnPayConfig.getHashSecret(), queryString[0]);
 
         return expectedHash.equals(callback.getVnp_SecureHash());
+    }
+
+    public boolean validateParams(Map<String, String> params) {
+        String secureHash = params.get("vnp_SecureHash");
+        if (secureHash == null || secureHash.isBlank()) {
+            return false;
+        }
+
+        Map<String, String> signedFields = new HashMap<>();
+        params.forEach((key, value) -> {
+            if (key != null
+                    && key.startsWith("vnp_")
+                    && !"vnp_SecureHash".equals(key)
+                    && !"vnp_SecureHashType".equals(key)) {
+                signedFields.put(key, value);
+            }
+        });
+
+        String[] queryString = VNPayUtil.buildQuery(signedFields).split("\\|\\|");
+        String expectedHash = VNPayUtil.hmacSHA512(vnPayConfig.getHashSecret(), queryString[0]);
+        return expectedHash.equalsIgnoreCase(secureHash);
     }
 
     /**

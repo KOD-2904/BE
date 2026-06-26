@@ -6,6 +6,8 @@ import lombok.Data;
 @Data
 public class AddAddressRequest {
     private Boolean isDefault = false;
+    private String receiverName;
+    private String phoneNumber;
 
     // Địa chỉ cũ (dùng cho GHN)
     private Integer provinceId;      // ID tỉnh

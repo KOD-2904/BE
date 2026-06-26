@@ -44,7 +44,12 @@ public enum ErrorCode {
     CAN_NOT_SOLVE_SHIPPING_FEE(10029, "Can Not Solve Shipping Fee", HttpStatus.BAD_REQUEST ),
     CAN_NOT_CONNECT_GHN(10030, "Can not connect to GHN", HttpStatus.BAD_REQUEST),
     CAN_NOT_HASH(10032, "Error while hashing", HttpStatus.BAD_REQUEST) ,
-    ADDRESS_NOT_FOUND(10031, "Address Not Found", HttpStatus.BAD_REQUEST ),;
+    ADDRESS_NOT_FOUND(10031, "Address Not Found", HttpStatus.BAD_REQUEST ),
+    CHECKOUT_SNAPSHOT_NOT_FOUND(10035, "Checkout snapshot not found", HttpStatus.BAD_REQUEST),
+    CHECKOUT_SNAPSHOT_EXPIRED(10036, "Checkout snapshot expired", HttpStatus.BAD_REQUEST),
+    CHECKOUT_SNAPSHOT_MISMATCH(10037, "Checkout snapshot does not match current checkout data", HttpStatus.BAD_REQUEST),
+    PAYMENT_ALREADY_PROCESSED(10038, "Payment already processed", HttpStatus.BAD_REQUEST),
+    SHIPPING_ORDER_FAILED(10039, "Shipping order failed", HttpStatus.BAD_REQUEST),;
 
     private final int code;  // Mã lỗi tự định nghĩa
     private final String message;

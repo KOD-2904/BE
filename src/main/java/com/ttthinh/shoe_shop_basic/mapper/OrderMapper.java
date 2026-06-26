@@ -19,7 +19,7 @@ public interface OrderMapper {
     @Mapping(target = "userId", source = "user.id")
     @Mapping(target = "status", source = "status")
     @Mapping(target = "items", source = "items")
-    @Mapping(target = "totalPrice", source = "totalPrice")
+    @Mapping(target = "totalPrice", expression = "java(orderTotal(order))")
     @Mapping(target = "discountPrice", source = "discountPrice")
     @Mapping(target = "shippingPrice", source = "shippingFee")
 
@@ -50,5 +50,15 @@ public interface OrderMapper {
 
     default BigDecimal calcTotal(BigDecimal price, Integer quantity) {
         return price.multiply(BigDecimal.valueOf(quantity));
+    }
+
+    default BigDecimal orderTotal(Order order) {
+        if (order.getFinalTotal() != null) {
+            return order.getFinalTotal();
+        }
+        BigDecimal productTotal = order.getTotalPrice() != null ? order.getTotalPrice() : BigDecimal.ZERO;
+        BigDecimal shipping = order.getShippingFee() != null ? order.getShippingFee() : BigDecimal.ZERO;
+        BigDecimal discount = order.getDiscountPrice() != null ? order.getDiscountPrice() : BigDecimal.ZERO;
+        return productTotal.add(shipping).subtract(discount).max(BigDecimal.ZERO);
     }
 }

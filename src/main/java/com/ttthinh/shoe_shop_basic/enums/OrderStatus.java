@@ -25,13 +25,13 @@ public enum OrderStatus {
                     next == READY_TO_SHIP;
 
             case READY_TO_SHIP ->
-                    next == SHIPPING;
+                    false;
 
             case SHIPPING ->
-                    next == DELIVERED || next == FAILED;
+                    false;
 
             case FAILED ->
-                    next == SHIPPING || next == RETURNED;
+                    false;
 
             case DELIVERED, CANCELLED, RETURNED ->
                     false;

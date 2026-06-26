@@ -1,33 +1,39 @@
 package com.ttthinh.shoe_shop_basic.service.impl;
 
+import com.ttthinh.shoe_shop_basic.dto.request.checkout.ShippingFeeRequest;
 import com.ttthinh.shoe_shop_basic.dto.request.order.BuyNowRequest;
 import com.ttthinh.shoe_shop_basic.dto.request.order.CreateOrderRequest;
-import com.ttthinh.shoe_shop_basic.dto.request.checkout.ShippingFeeRequest;
 import com.ttthinh.shoe_shop_basic.dto.response.order.OrderResponse;
-import com.ttthinh.shoe_shop_basic.entity.customer.Address;
 import com.ttthinh.shoe_shop_basic.entity.auth.UserAccount;
 import com.ttthinh.shoe_shop_basic.entity.cart.CartItem;
+import com.ttthinh.shoe_shop_basic.entity.checkout.ShippingFeeSnapshot;
+import com.ttthinh.shoe_shop_basic.entity.customer.Address;
+import com.ttthinh.shoe_shop_basic.entity.inventory.Inventory;
 import com.ttthinh.shoe_shop_basic.entity.order.Order;
 import com.ttthinh.shoe_shop_basic.entity.order.OrderItem;
 import com.ttthinh.shoe_shop_basic.entity.payment.Payment;
-import com.ttthinh.shoe_shop_basic.entity.inventory.Inventory;
 import com.ttthinh.shoe_shop_basic.enums.OrderStatus;
 import com.ttthinh.shoe_shop_basic.enums.PaymentMethod;
 import com.ttthinh.shoe_shop_basic.enums.PaymentStatus;
+import com.ttthinh.shoe_shop_basic.enums.ShippingStatus;
 import com.ttthinh.shoe_shop_basic.exception.AppException;
 import com.ttthinh.shoe_shop_basic.exception.ErrorCode;
 import com.ttthinh.shoe_shop_basic.mapper.OrderMapper;
-import com.ttthinh.shoe_shop_basic.repository.jpa.AddressRepository;
 import com.ttthinh.shoe_shop_basic.repository.jpa.CartItemRepository;
-import com.ttthinh.shoe_shop_basic.repository.jpa.CartRepository;
 import com.ttthinh.shoe_shop_basic.repository.jpa.InventoryRepository;
 import com.ttthinh.shoe_shop_basic.repository.jpa.OrderRepository;
 import com.ttthinh.shoe_shop_basic.repository.jpa.PaymentRepository;
+import com.ttthinh.shoe_shop_basic.repository.jpa.ShippingFeeSnapshotRepository;
+import com.ttthinh.shoe_shop_basic.service.CheckoutService;
 import com.ttthinh.shoe_shop_basic.service.InventoryLockService;
-import com.ttthinh.shoe_shop_basic.service.shipping.GHNShippingService;
-import com.ttthinh.shoe_shop_basic.service.impl.payment.VNPayService;
 import com.ttthinh.shoe_shop_basic.service.OrderService;
-import lombok.*;
+import com.ttthinh.shoe_shop_basic.service.shipping.GHNShippingService;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,339 +44,288 @@ import java.util.List;
 
 import static com.ttthinh.shoe_shop_basic.enums.OrderStatus.PENDING;
 
-
-// ... imports ...
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class OrderServiceImpl
-        implements OrderService {
+public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final InventoryRepository inventoryRepository;
-    private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final PaymentRepository paymentRepository;
-    private final AddressRepository addressRepository;      // thêm
-    private final GHNShippingService ghnShippingService;    // thêm
+    private final GHNShippingService ghnShippingService;
     private final OrderMapper orderMapper;
-    private final VNPayService vnPayService;
     private final InventoryLockService inventoryLockService;
+    private final CheckoutService checkoutService;
+    private final ShippingFeeSnapshotRepository shippingFeeSnapshotRepository;
 
-    // ==================== PHƯƠNG THỨC PUBLIC ====================
-
-    /**
-     * Tạo order từ các item được chọn trong cart
-     * Đây là method chính, thay thế method createOrder cũ
-     */
     @Override
     @Transactional
-    public OrderResponse createOrderFromCart(
-            UserAccount user,
-            CreateOrderRequest request
-    ) {
-        // 1. Validate và lấy cart items được chọn
-        List<CartItem> selectedItems = validateAndGetSelectedItems(
+    public OrderResponse createOrderFromCart(UserAccount user, CreateOrderRequest request) {
+        List<CartItem> selectedItems = checkoutService.validateAndGetSelectedItems(user, request.getCartItemIds());
+        Address address = checkoutService.resolveAddress(user, request.getAddressId());
+        InventoryInfo inventoryInfo = validateInventoryAndCalculate(selectedItems);
+        ShippingFeeSnapshot snapshot = consumeSnapshot(
                 user,
-                request.getCartItemIds()
+                request.getShippingFeeSnapshotId(),
+                address,
+                selectedItems,
+                inventoryInfo
         );
 
-        // 2. Lấy địa chỉ giao hàng
-        Address address = getAndValidateAddress(user, request.getAddressId());
-
-        // 3. Validate inventory và tính toán thông số
-        InventoryInfo inventoryInfo = validateInventoryAndCalculate(selectedItems);
-
-        // 4. Tính phí ship từ GHN
-        BigDecimal shippingFee = calculateShippingFee(address, inventoryInfo);
-        //log.warn("Shipping fee: ", shippingFee);
-        log.warn("Shipping fee calculated: {}", shippingFee);
-
-        // 5. Tạo order entity
         Order order = buildOrderEntity(
                 user,
                 address,
                 selectedItems,
                 inventoryInfo,
-                shippingFee,
+                snapshot.getShippingFee(),
                 request.getNote()
         );
 
-        // 6. Trừ kho
         inventoryLockService.lockCartItems(selectedItems);
-
-        // 7. Lưu order
         Order savedOrder = orderRepository.save(order);
 
-        // 8. Tạo payment record
         Payment payment = createPaymentForOrder(savedOrder, request.getPaymentMethod());
         paymentRepository.save(payment);
-
-        if (request.getPaymentMethod() == PaymentMethod.COD) {
-            inventoryLockService.deductLocked(savedOrder);
-            savedOrder.setStatus(OrderStatus.CONFIRMED);
-            orderRepository.save(savedOrder);
-        }
-
-        // 9. Xóa các cart item đã chọn
         cartItemRepository.deleteAll(selectedItems);
 
-        var orderResponse = orderMapper.toOrderResponse(savedOrder);
-        orderResponse.setPaymentId(payment.getId());
-        // 10. Xử lý VNPAY nếu cần
-        if (request.getPaymentMethod() == PaymentMethod.VNPAY) {
-            // TODO: Gọi VNPAY service để tạo payment URL
-//            VNPayPaymentRequest vnPayPaymentRequest = VNPayPaymentRequest.builder()
-//                    .amount(savedOrder.getFinalTotal())
-//                    .orderInfo("Thanh toan don hang " + savedOrder.getId())
-//                    .orderId(savedOrder.getId())
-//                    .build();
-//             String paymentUrl = vnPayService.createPaymentUrl(vnPayPaymentRequest);
-//             orderResponse.setPaymentUrl(paymentUrl);
-//             log.info("Payment URL created: {}", paymentUrl);
-//            private String orderId;           // Mã đơn hàng của merchant
-//            private BigDecimal amount;        // Số tiền (VNĐ)
-//            private String orderInfo;         // Thông tin đơn hàng
-//            private String returnUrl;         // URL trả về sau thanh toán
-//            private String ipnUrl;            // URL IPN
-        }
-        return orderResponse;
+        snapshot.setUsedAt(LocalDateTime.now());
+        shippingFeeSnapshotRepository.save(snapshot);
+
+        return toOrderResponse(savedOrder, payment);
     }
 
-    /**
-     * Mua ngay (đã thêm addressId)
-     */
     @Override
     @Transactional
     public OrderResponse buyNow(UserAccount user, BuyNowRequest request) {
-        // 1. Kiểm tra inventory
         Inventory inventory = inventoryRepository
                 .findLockedByVariantSizeId(request.getVariantSizeId())
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_VARIANT_NOT_FOUND));
 
+        if (request.getQuantity() == null || request.getQuantity() <= 0) {
+            throw new AppException(ErrorCode.QUANTITY_NOT_VALID);
+        }
         if (request.getQuantity() > inventory.getAvailableQuantity()) {
             throw new AppException(ErrorCode.OUT_OF_STOCK);
         }
+
+        Address address = checkoutService.resolveAddress(user, request.getAddressId());
         inventoryLockService.lockVariantSize(request.getVariantSizeId(), request.getQuantity());
 
-        // 2. Lấy địa chỉ
-        Address address = getAndValidateAddress(user, request.getAddressId());
+        InventoryInfo info = InventoryInfo.builder()
+                .totalWeight(200 * request.getQuantity())
+                .totalPrice(inventory.getVariantSize().getPrice().multiply(BigDecimal.valueOf(request.getQuantity())))
+                .maxLength(0)
+                .maxWidth(0)
+                .totalHeight(0)
+                .build();
 
-        // 3. Tính thông số shipping cho 1 sản phẩm
-        InventoryInfo info = new InventoryInfo();
-        info.totalWeight = 200 * request.getQuantity();
-        info.totalPrice = inventory.getVariantSize().getPrice()
-                .multiply(BigDecimal.valueOf(request.getQuantity()));
-        info.maxLength = 0;
-        info.maxWidth = 0;
-        info.totalHeight = 0;
-
-        // 4. Tính phí ship
         BigDecimal shippingFee = calculateShippingFee(address, info);
 
-        // 5. Tạo order
         Order order = new Order();
         order.setUser(user);
         order.setStatus(PENDING);
+        order.setShippingStatus(ShippingStatus.NOT_CREATED);
         order.setAddressId(address.getId());
         order.setShippingAddress(address.getFullAddress());
-        order.setPhoneNumber(user.getPhone());
-        order.setReceiverName(user.getEmail());
+        order.setPhoneNumber(address.getPhoneNumber() != null ? address.getPhoneNumber() : user.getPhone());
+        order.setReceiverName(address.getReceiverName() != null ? address.getReceiverName() : user.getEmail());
         order.setNote(request.getNote());
 
-        // Trừ kho
-
-        // Tạo order item
         OrderItem orderItem = OrderItem.builder()
                 .order(order)
                 .variantSize(inventory.getVariantSize())
                 .quantity(request.getQuantity())
                 .unitPrice(inventory.getVariantSize().getPrice())
-                .lineTotal(inventory.getVariantSize().getPrice()
-                        .multiply(BigDecimal.valueOf(request.getQuantity())))
+                .lineTotal(info.getTotalPrice())
                 .build();
 
         order.getItems().add(orderItem);
-        order.setTotalPrice(info.totalPrice);
+        order.setTotalPrice(info.getTotalPrice());
         order.setShippingFee(shippingFee);
-        order.setFinalTotal(info.totalPrice.add(shippingFee));
+        order.setFinalTotal(info.getTotalPrice().add(shippingFee));
 
         Order savedOrder = orderRepository.save(order);
-
-        // Tạo payment
         Payment payment = createPaymentForOrder(savedOrder, request.getPaymentMethod());
         paymentRepository.save(payment);
-        if (request.getPaymentMethod() == PaymentMethod.COD) {
-            inventoryLockService.deductLocked(savedOrder);
-            savedOrder.setStatus(OrderStatus.CONFIRMED);
-            orderRepository.save(savedOrder);
-        }
-        var orderResponse = orderMapper.toOrderResponse(savedOrder);
-        orderResponse.setPaymentId(payment.getId());
-        // Xử lý VNPAY
-        if (request.getPaymentMethod() == PaymentMethod.VNPAY) {
-//            // TODO: Gọi VNPAY service để tạo payment URL
-//            VNPayPaymentRequest vnPayPaymentRequest = VNPayPaymentRequest.builder()
-//                    .amount(savedOrder.getFinalTotal())
-//                    .orderInfo("Thanh toan don hang " + savedOrder.getId())
-//                    .orderId(savedOrder.getId())
-//                    .build();
-//            String paymentUrl = vnPayService.createPaymentUrl(vnPayPaymentRequest);
-//            orderResponse.setPaymentUrl(paymentUrl);
-//            log.info("Payment URL created: {}", paymentUrl);
-        }
 
-        return orderResponse;
+        return toOrderResponse(savedOrder, payment);
     }
 
     @Override
+    @Transactional
     public OrderResponse adminCancelOrder(String orderId) {
-        return null;
+        Order order = getOrder(orderId);
+        if (!order.getStatus().adminCanCancel()) {
+            throw new AppException(ErrorCode.ORDER_CANNOT_CANCEL);
+        }
+        Payment payment = getDisplayPayment(order);
+        if (order.getStatus() == PENDING) {
+            inventoryLockService.releaseLocked(order);
+            if (payment != null && payment.getStatus() == PaymentStatus.UNPAID) {
+                payment.setStatus(PaymentStatus.FAILED);
+                payment.setFailureReason("Order cancelled by admin");
+            }
+        } else if (order.getStatus() == OrderStatus.CONFIRMED) {
+            inventoryLockService.restoreDeducted(order);
+            if (payment != null && payment.getStatus() == PaymentStatus.PAID) {
+                payment.setStatus(PaymentStatus.REFUNDED);
+            }
+        }
+        order.setStatus(OrderStatus.CANCELLED);
+        return toOrderResponse(orderRepository.save(order), payment);
     }
 
     @Override
+    @Transactional
     public OrderResponse updateOrderStatus(String orderId, OrderStatus status) {
-        return null;
+        Order order = getOrder(orderId);
+        if (!order.getStatus().canTransitionTo(status)) {
+            throw new AppException(ErrorCode.INVALID_ORDER_STATUS);
+        }
+
+        Payment payment = getDisplayPayment(order);
+        if (status == OrderStatus.CONFIRMED) {
+            confirmOrder(order, payment);
+        } else {
+            order.setStatus(status);
+        }
+
+        return toOrderResponse(orderRepository.save(order), payment);
     }
 
     @Override
     public OrderResponse getOrderDetailForAdmin(String orderId) {
-        return null;
+        Order order = getOrder(orderId);
+        return toOrderResponse(order, getDisplayPayment(order));
     }
 
     @Override
     public List<OrderResponse> getAllOrders() {
-        return List.of();
+        return orderRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(order -> toOrderResponse(order, getDisplayPayment(order)))
+                .toList();
     }
 
-    /**
-     * Giữ method cũ cho backward compatibility, nhưng đánh dấu deprecated
-     */
-//    //@Override
-//    @Transactional
-//    @Deprecated   OLD METHOD
-//    public OrderResponse createOrder(UserAccount user, PaymentMethod paymentMethod) {
-//        // Lấy tất cả cart items
-//        Cart cart = cartRepository.findByUser(user)
-//                .orElseThrow(() -> new AppException(ErrorCode.CART_EMPTY));
-//
-//        if (cart.getItems().isEmpty()) {
-//            throw new AppException(ErrorCode.CART_EMPTY);
-//        }
-//
-//        List<String> allCartItemIds = cart.getItems().stream()
-//                .map(CartItem::getId)
-//                .toList();
-//
-//        CreateOrderRequest request = new CreateOrderRequest();
-//        request.setCartItemIds(allCartItemIds);
-//        request.setPaymentMethod(paymentMethod);
-//        // TODO: Cần lấy address mặc định của user
-//        // request.setAddressId(user.getDefaultAddressId());
-//
-//        return createOrderFromCart(user, request);
-//    }
     @Override
     public List<OrderResponse> getMyOrders(UserAccount user) {
-        return List.of();
+        return orderRepository.findByUserOrderByCreatedAtDesc(user)
+                .stream()
+                .map(order -> toOrderResponse(order, getDisplayPayment(order)))
+                .toList();
     }
 
     @Override
     public OrderResponse getOrderDetail(UserAccount user, String orderId) {
-        return null;
+        Order order = getOrder(orderId);
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED_ACCESS);
+        }
+        return toOrderResponse(order, getDisplayPayment(order));
     }
 
     @Override
+    @Transactional
     public OrderResponse userCancelOrder(UserAccount user, String orderId) {
-        return null;
-    }
-
-    // ==================== PRIVATE HELPER METHODS ====================
-
-    /**
-     * Validate và lấy danh sách cart item được chọn
-     */
-    private List<CartItem> validateAndGetSelectedItems(UserAccount user, List<String> cartItemIds) {
-        if (cartItemIds == null || cartItemIds.isEmpty()) {
-            throw new AppException(ErrorCode.CART_EMPTY);
-        }
-
-        List<CartItem> selectedItems = cartItemRepository.findAllById(cartItemIds);
-
-        if (selectedItems.size() != cartItemIds.size()) {
-            throw new AppException(ErrorCode.CART_ITEM_NOT_FOUND);
-        }
-
-        // Validate ownership
-        for (CartItem item : selectedItems) {
-            if (!item.getCart().getUser().getId().equals(user.getId())) {
-                throw new AppException(ErrorCode.UNAUTHORIZED_ACCESS);
-            }
-        }
-
-        return selectedItems;
-    }
-
-    /**
-     * Lấy và validate địa chỉ
-     */
-    private Address getAndValidateAddress(UserAccount user, String addressId) {
-        Address address = addressRepository.findById(addressId)
-                .orElseThrow(() -> new AppException(ErrorCode.ADDRESS_NOT_FOUND));
-
-        if (!address.getUserId().equals(user.getId())) {
+        Order order = getOrder(orderId);
+        if (!order.getUser().getId().equals(user.getId())) {
             throw new AppException(ErrorCode.UNAUTHORIZED_ACCESS);
         }
+        if (!order.getStatus().userCanCancel()) {
+            throw new AppException(ErrorCode.ORDER_CANNOT_CANCEL);
+        }
 
-        return address;
+        Payment payment = getDisplayPayment(order);
+        inventoryLockService.releaseLocked(order);
+        if (payment != null && payment.getStatus() == PaymentStatus.UNPAID) {
+            payment.setStatus(PaymentStatus.FAILED);
+            payment.setFailureReason("Order cancelled by user");
+        }
+        order.setStatus(OrderStatus.CANCELLED);
+        return toOrderResponse(orderRepository.save(order), payment);
     }
 
-    /**
-     * Validate inventory và tính toán thông số cho shipping
-     */
-    private InventoryInfo validateInventoryAndCalculate(List<CartItem> items) {
+    private void confirmOrder(Order order, Payment payment) {
+        if (payment == null) {
+            throw new AppException(ErrorCode.PAYMENT_NOT_FOUND);
+        }
+        if (payment.getMethod() == PaymentMethod.COD) {
+            inventoryLockService.deductLocked(order);
+            order.setStatus(OrderStatus.CONFIRMED);
+            return;
+        }
+        if (payment.getStatus() != PaymentStatus.PAID) {
+            throw new AppException(ErrorCode.INVALID_ORDER_STATUS);
+        }
+        order.setStatus(OrderStatus.CONFIRMED);
+    }
 
+    private Order getOrder(String orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+    }
+
+    private Payment getDisplayPayment(Order order) {
+        return paymentRepository.findDisplayPayments(order.getId()).stream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    private ShippingFeeSnapshot consumeSnapshot(
+            UserAccount user,
+            String snapshotId,
+            Address address,
+            List<CartItem> selectedItems,
+            InventoryInfo inventoryInfo
+    ) {
+        ShippingFeeSnapshot snapshot = shippingFeeSnapshotRepository.findById(snapshotId)
+                .orElseThrow(() -> new AppException(ErrorCode.CHECKOUT_SNAPSHOT_NOT_FOUND));
+        if (!snapshot.getUserId().equals(user.getId()) || snapshot.isUsed()) {
+            throw new AppException(ErrorCode.CHECKOUT_SNAPSHOT_MISMATCH);
+        }
+        if (snapshot.isExpired()) {
+            throw new AppException(ErrorCode.CHECKOUT_SNAPSHOT_EXPIRED);
+        }
+        if (!snapshot.getAddressId().equals(address.getId())) {
+            throw new AppException(ErrorCode.CHECKOUT_SNAPSHOT_MISMATCH);
+        }
+        if (!snapshot.getCartSignature().equals(checkoutService.buildCartSignature(selectedItems))) {
+            throw new AppException(ErrorCode.CHECKOUT_SNAPSHOT_MISMATCH);
+        }
+        if (snapshot.getProductTotal().compareTo(inventoryInfo.getTotalPrice()) != 0) {
+            throw new AppException(ErrorCode.CHECKOUT_SNAPSHOT_MISMATCH);
+        }
+        return snapshot;
+    }
+
+    private InventoryInfo validateInventoryAndCalculate(List<CartItem> items) {
         BigDecimal totalPrice = BigDecimal.ZERO;
         int totalWeight = 0;
-        int maxLength = 0;
-        int maxWidth = 0;
-        int totalHeight = 0;
 
         for (CartItem item : items) {
             Inventory inventory = inventoryRepository
                     .findLockedByVariantSizeId(item.getVariantSize().getId())
                     .orElseThrow(() -> new AppException(ErrorCode.OUT_OF_STOCK));
-
             if (item.getQuantity() > inventory.getAvailableQuantity()) {
                 throw new AppException(ErrorCode.OUT_OF_STOCK);
             }
-
             totalPrice = totalPrice.add(
-                    item.getVariantSize().getPrice()
-                            .multiply(BigDecimal.valueOf(item.getQuantity()))
+                    item.getVariantSize().getPrice().multiply(BigDecimal.valueOf(item.getQuantity()))
             );
-
-            // Tính weight (mặc định 200g nếu null)
             totalWeight += 200 * item.getQuantity();
-
-            // Tính kích thước (lấy max)
         }
+
         return InventoryInfo.builder()
-                .maxLength(maxLength)
-                .maxWidth(maxWidth)
-                .totalHeight(totalHeight)
+                .maxLength(0)
+                .maxWidth(0)
+                .totalHeight(0)
                 .totalWeight(totalWeight)
                 .totalPrice(totalPrice)
                 .build();
     }
 
-    /**
-     * Tính phí ship từ GHN
-     */
     private BigDecimal calculateShippingFee(Address address, InventoryInfo info) {
-        // Nếu không có weight thì trả về 0 tạm thời
         if (info.totalWeight == 0) {
-            log.warn("Total weight is 0, returning 0 shipping fee");
             return BigDecimal.ZERO;
         }
         ShippingFeeRequest request = ShippingFeeRequest.builder()
@@ -382,21 +337,10 @@ public class OrderServiceImpl
                 .height(info.totalHeight)
                 .insuranceValue(0)
                 .build();
-//        ShippingFeeRequest request = new ShippingFeeRequest();
-//        request.setToDistrictId(address.getDistrictId());
-//        request.setToWardCode(address.getWardCode());
-//        request.setWeight(info.totalWeight);
-//        request.setLength(info.maxLength);
-//        request.setWidth(info.maxWidth);
-//        request.setHeight(info.totalHeight);
-//        request.setInsuranceValue(info.totalPrice.intValue());
-
         try {
-            Integer fee = ghnShippingService.calculateShippingFee(request);
-            return BigDecimal.valueOf(fee);
+            return BigDecimal.valueOf(ghnShippingService.calculateShippingFee(request));
         } catch (Exception e) {
             log.error("Failed to calculate shipping fee", e);
-            // Fallback: tính phí ship tạm thời theo weight (30k cho 1kg đầu, 5k mỗi 500g tiếp)
             int baseFee = 30000;
             int extraWeight = Math.max(0, info.totalWeight - 1000);
             int extraFee = (extraWeight / 500) * 5000;
@@ -404,9 +348,6 @@ public class OrderServiceImpl
         }
     }
 
-    /**
-     * Build order entity từ các thông tin đã tính
-     */
     private Order buildOrderEntity(
             UserAccount user,
             Address address,
@@ -418,24 +359,23 @@ public class OrderServiceImpl
         Order order = new Order();
         order.setUser(user);
         order.setStatus(PENDING);
+        order.setShippingStatus(ShippingStatus.NOT_CREATED);
         order.setAddressId(address.getId());
         order.setShippingAddress(address.getFullAddress());
-        order.setPhoneNumber(user.getPhone());
-        order.setReceiverName(user.getEmail());
+        order.setPhoneNumber(address.getPhoneNumber() != null ? address.getPhoneNumber() : user.getPhone());
+        order.setReceiverName(address.getReceiverName() != null ? address.getReceiverName() : user.getEmail());
         order.setNote(note);
         order.setTotalPrice(info.totalPrice);
         order.setShippingFee(shippingFee);
         order.setFinalTotal(info.totalPrice.add(shippingFee));
 
-        // Tạo order items
         for (CartItem item : items) {
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .variantSize(item.getVariantSize())
                     .quantity(item.getQuantity())
                     .unitPrice(item.getVariantSize().getPrice())
-                    .lineTotal(item.getVariantSize().getPrice()
-                            .multiply(BigDecimal.valueOf(item.getQuantity())))
+                    .lineTotal(item.getVariantSize().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                     .build();
             order.getItems().add(orderItem);
         }
@@ -443,37 +383,57 @@ public class OrderServiceImpl
         return order;
     }
 
-    /**
-     * Tạo payment record
-     */
     private Payment createPaymentForOrder(Order order, PaymentMethod paymentMethod) {
         Payment payment = Payment.builder()
                 .order(order)
                 .status(PaymentStatus.UNPAID)
                 .method(paymentMethod)
-                .amount(order.getFinalTotal())  // Dùng final total (đã bao gồm ship)
+                .amount(orderTotal(order))
                 .build();
 
-        // Nếu là VNPAY, thêm expired time
         if (paymentMethod == PaymentMethod.VNPAY) {
-            //payment.setExpiredAt(LocalDateTime.now().plusMinutes(15));
-            payment.setExpiredAt(LocalDateTime.now().plusSeconds(900));
+            payment.setExpiredAt(LocalDateTime.now().plusMinutes(15));
         }
 
         return payment;
     }
 
-    // ==================== INNER CLASS ====================
+    private BigDecimal orderTotal(Order order) {
+        if (order.getFinalTotal() != null) {
+            return order.getFinalTotal();
+        }
+        BigDecimal productTotal = order.getTotalPrice() != null ? order.getTotalPrice() : BigDecimal.ZERO;
+        BigDecimal shipping = order.getShippingFee() != null ? order.getShippingFee() : BigDecimal.ZERO;
+        BigDecimal discount = order.getDiscountPrice() != null ? order.getDiscountPrice() : BigDecimal.ZERO;
+        return productTotal.add(shipping).subtract(discount).max(BigDecimal.ZERO);
+    }
+
+    private OrderResponse toOrderResponse(Order order, Payment payment) {
+        OrderResponse response = orderMapper.toOrderResponse(order);
+        if (payment != null) {
+            response.setPaymentId(payment.getId());
+            response.setPaymentUrl(payment.getPaymentUrl());
+            response.setPaymentMethod(payment.getMethod());
+            response.setPaymentStatus(payment.getStatus());
+            if (payment.getMethod() == PaymentMethod.VNPAY
+                    && payment.getStatus() == PaymentStatus.UNPAID
+                    && order.getStatus() != PENDING
+                    && order.getStatus() != OrderStatus.CANCELLED) {
+                response.setPaymentStatus(PaymentStatus.PAID);
+            }
+        }
+        return response;
+    }
 
     @Data
     @Builder
-    @RequiredArgsConstructor
     @AllArgsConstructor
+    @FieldDefaults(level = AccessLevel.PRIVATE)
     private static class InventoryInfo {
-        private BigDecimal totalPrice;
-        private Integer totalWeight;
-        private Integer maxLength;
-        private Integer maxWidth;
-        private Integer totalHeight;
+        BigDecimal totalPrice;
+        Integer totalWeight;
+        Integer maxLength;
+        Integer maxWidth;
+        Integer totalHeight;
     }
 }

@@ -21,6 +21,9 @@ public class CreateOrderRequest {
     @NotNull(message = "Phải chọn địa chỉ giao hàng")
     private String addressId;
 
+    @NotNull(message = "Phai co shipping fee snapshot")
+    private String shippingFeeSnapshotId;
+
     @NotNull(message = "Phải chọn phương thức thanh toán")
     private PaymentMethod paymentMethod;
 

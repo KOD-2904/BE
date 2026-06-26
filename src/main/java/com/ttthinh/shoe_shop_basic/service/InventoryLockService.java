@@ -69,6 +69,18 @@ public class InventoryLockService {
         }
     }
 
+    @Transactional
+    public void restoreDeducted(Order order) {
+        for (OrderItem item : order.getItems()) {
+            Inventory inventory = getLockedInventory(item.getVariantSize().getId());
+            int quantity = item.getQuantity();
+            int currentQuantity = nullToZero(inventory.getQuantity());
+
+            inventory.setQuantity(currentQuantity + quantity);
+            inventoryRepository.save(inventory);
+        }
+    }
+
     private Inventory getLockedInventory(String variantSizeId) {
         return inventoryRepository.findLockedByVariantSizeId(variantSizeId)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_VARIANT_NOT_FOUND));

@@ -49,6 +49,47 @@ public class UserController {
                 .build();
     }
 
+    @GetMapping("/api/addresses")
+    public ApiResponse getAddresses(
+            @AuthenticationPrincipal(expression = "user") UserAccount user) {
+        return getMyAddresses(user);
+    }
+
+    @PostMapping("/api/addresses")
+    public ApiResponse createAddress(
+            @AuthenticationPrincipal(expression = "user") UserAccount user,
+            @RequestBody @Valid AddAddressRequest addAddressRequest) {
+        var address = addressService.setDefaultAddress(addAddressRequest, user);
+        return ApiResponse.builder()
+                .result(addressService.toAddressResponse(address))
+                .message("Add address successful")
+                .code(200)
+                .build();
+    }
+
+    @PutMapping("/api/addresses/{addressId}/default")
+    public ApiResponse changeDefaultAddress(
+            @AuthenticationPrincipal(expression = "user") UserAccount user,
+            @PathVariable String addressId) {
+        return ApiResponse.builder()
+                .result(addressService.changeDefaultAddress(addressId, user))
+                .message("Default address updated")
+                .code(200)
+                .build();
+    }
+
+    @PutMapping("/api/addresses/{addressId}")
+    public ApiResponse updateAddress(
+            @AuthenticationPrincipal(expression = "user") UserAccount user,
+            @PathVariable String addressId,
+            @RequestBody @Valid AddAddressRequest addAddressRequest) {
+        return ApiResponse.builder()
+                .result(addressService.updateAddress(addressId, addAddressRequest, user))
+                .message("Address updated")
+                .code(200)
+                .build();
+    }
+
     @PostMapping("/register")
     public ApiResponse<UserResponse> register(
             @Valid @RequestBody RegisterRequest registerRequest

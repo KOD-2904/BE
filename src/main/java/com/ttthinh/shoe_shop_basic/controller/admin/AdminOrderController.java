@@ -3,6 +3,7 @@ package com.ttthinh.shoe_shop_basic.controller.admin;
 import com.ttthinh.shoe_shop_basic.dto.request.order.UpdateOrderStatusRequest;
 import com.ttthinh.shoe_shop_basic.dto.response.order.OrderResponse;
 import com.ttthinh.shoe_shop_basic.service.OrderService;
+import com.ttthinh.shoe_shop_basic.service.shipping.ShippingOrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +16,7 @@ import java.util.List;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminOrderController {
     private final OrderService orderService;
+    private final ShippingOrderService shippingOrderService;
     @GetMapping
     public List<OrderResponse> getAllOrders() {
         return orderService.getAllOrders();
@@ -49,5 +51,10 @@ public class AdminOrderController {
             @PathVariable String orderId
     ) {
         return orderService.adminCancelOrder(orderId);
+    }
+
+    @PostMapping("/{orderId}/shipping/ghn")
+    public OrderResponse createGHNShippingOrder(@PathVariable String orderId) {
+        return shippingOrderService.createGHNOrder(orderId);
     }
 }

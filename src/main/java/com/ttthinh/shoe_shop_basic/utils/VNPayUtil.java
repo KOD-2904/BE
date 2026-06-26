@@ -47,7 +47,10 @@ public class VNPayUtil {
             }
         }
 
-        // remove last "&"
+        if (query.isEmpty() || hashData.isEmpty()) {
+            return "||";
+        }
+
         query.setLength(query.length() - 1);
         hashData.setLength(hashData.length() - 1);
 

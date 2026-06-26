@@ -4,9 +4,23 @@ import com.ttthinh.shoe_shop_basic.entity.BaseEntity;
 import com.ttthinh.shoe_shop_basic.entity.order.Order;
 import com.ttthinh.shoe_shop_basic.enums.PaymentMethod;
 import com.ttthinh.shoe_shop_basic.enums.PaymentStatus;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -22,34 +36,40 @@ import java.time.LocalDateTime;
 public class Payment extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
-    private Order order;
+    Order order;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false)
-    private PaymentMethod method;
+    PaymentMethod method;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false)
-    private PaymentStatus status;
+    PaymentStatus status;
 
     @Column(nullable = false)
-    private BigDecimal amount;
+    BigDecimal amount;
 
     @Column
-    private String transactionId; // Mã giao dịch từ VNPAY
+    String transactionId;
+
+    @Column(columnDefinition = "TEXT")
+    String paymentUrl;
 
     @Column
-    private String paymentUrl; // URL thanh toán cho VNPAY
+    LocalDateTime paidAt;
+
     @Column
-    private LocalDateTime paidAt;
+    String failureReason;
+
     @Column
-    private String failureReason;
-    @Column
-    private LocalDateTime expiredAt;
+    LocalDateTime expiredAt;
 
     public boolean isSuccess() {
-        return PaymentStatus.PAID.equals(this.status);
+        return PaymentStatus.PAID.equals(status);
     }
+
     public boolean isExpired() {
         return expiredAt != null && LocalDateTime.now().isAfter(expiredAt);
     }

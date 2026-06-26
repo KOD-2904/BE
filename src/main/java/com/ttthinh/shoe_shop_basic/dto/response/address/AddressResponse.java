@@ -17,6 +17,8 @@ import lombok.experimental.FieldDefaults;
 public class AddressResponse {
     String id;
     Boolean isDefault;
+    String receiverName;
+    String phoneNumber;
     Integer provinceId;
     Integer districtId;
     String wardCode;

@@ -3,11 +3,15 @@ package com.ttthinh.shoe_shop_basic.entity.order;
 import com.ttthinh.shoe_shop_basic.entity.BaseEntity;
 import com.ttthinh.shoe_shop_basic.entity.auth.UserAccount;
 import com.ttthinh.shoe_shop_basic.enums.OrderStatus;
+import com.ttthinh.shoe_shop_basic.enums.ShippingStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -26,7 +30,14 @@ public class Order extends BaseEntity {
     UserAccount user;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 30)
     OrderStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 30)
+    ShippingStatus shippingStatus;
 
     BigDecimal subtotal;
 
@@ -44,4 +55,10 @@ public class Order extends BaseEntity {
     private String note;              // ghi chú đơn hàng
     private String phoneNumber;       // số điện thoại nhận hàng
     private String receiverName;
+    private String shippingProvider;
+    private String shippingOrderCode;
+    private String trackingUrl;
+    private LocalDateTime shippingCreatedAt;
+    private LocalDateTime shippedAt;
+    private LocalDateTime deliveredAt;
 }

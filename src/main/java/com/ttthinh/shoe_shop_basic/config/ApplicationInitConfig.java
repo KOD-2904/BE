@@ -64,7 +64,14 @@ public class ApplicationInitConfig {
                 userAccountRepository.save(admin);
                 log.info("Created initial admin user with email: {}", adminEmail);
             } else {
-                log.info("Initial admin user already exists");
+                userAccountRepository.findByEmail(adminEmail).ifPresent(admin -> {
+                    admin.getRoles().add(roleAdmin);
+                    admin.getRoles().add(roleUser);
+                    admin.setStatus(UserStatus.ACTIVE);
+                    admin.setEmailVerified(true);
+                    userAccountRepository.save(admin);
+                    log.info("Ensured initial admin user has admin roles: {}", adminEmail);
+                });
             }
 
             if (!userAccountRepository.existsByEmail(demoEmail)) {

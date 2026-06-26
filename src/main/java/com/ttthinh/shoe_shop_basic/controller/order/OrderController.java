@@ -2,14 +2,14 @@ package com.ttthinh.shoe_shop_basic.controller.order;
 
 import com.ttthinh.shoe_shop_basic.dto.request.order.BuyNowRequest;
 import com.ttthinh.shoe_shop_basic.dto.request.order.CreateOrderRequest;
-import com.ttthinh.shoe_shop_basic.dto.request.payment.VNPayPaymentRequest;
 import com.ttthinh.shoe_shop_basic.dto.response.auth.ApiResponse;
 import com.ttthinh.shoe_shop_basic.dto.response.order.OrderResponse;
 import com.ttthinh.shoe_shop_basic.entity.auth.UserAccount;
 import com.ttthinh.shoe_shop_basic.enums.PaymentMethod;
-import com.ttthinh.shoe_shop_basic.service.impl.payment.VNPayService;
 import com.ttthinh.shoe_shop_basic.service.OrderService;
+import com.ttthinh.shoe_shop_basic.service.PaymentApplicationService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,26 +23,18 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
-    private final VNPayService vnPayService;
+    private final PaymentApplicationService paymentApplicationService;
 
     @PostMapping
     public ApiResponse<?> createOrder(
             @AuthenticationPrincipal(expression = "user") UserAccount user,
-            @RequestBody CreateOrderRequest req,
+            @RequestBody @Valid CreateOrderRequest req,
             HttpServletRequest httpServletRequest
     ) {
 
         var orderResponse = orderService.createOrderFromCart(user, req);
         if (req.getPaymentMethod() == PaymentMethod.VNPAY){
-            VNPayPaymentRequest vnPayPaymentRequest = VNPayPaymentRequest.builder()
-                    .amount(orderResponse.getFinalTotalPrice())
-                    .orderInfo(orderResponse.getPaymentId())
-                    .orderId(orderResponse.getId())
-                    .paymentId(orderResponse.getPaymentId())
-                    .build();
-            String paymentUrl = vnPayService.createPaymentUrl(vnPayPaymentRequest, httpServletRequest);
-            orderResponse.setPaymentUrl(paymentUrl);
-            log.info("Payment URL created: {}", paymentUrl);
+            attachVNPayUrl(user, orderResponse, httpServletRequest);
         }
         log.info("Shipping Fee: {}", orderResponse.getShippingPrice());
         return ApiResponse.builder()
@@ -66,20 +58,32 @@ public class OrderController {
     ) {
         return orderService.getOrderDetail(user, id);
     }
-//    @PostMapping("/{orderId}/cancel")
-//    public OrderResponse cancelOrder(
-//            @AuthenticationPrincipal(expression = "user") UserAccount user,
-//            @PathVariable String orderId
-//    ) {
-//        return orderService.cancelOrder(user, orderId);
-//    }
+    @PostMapping("/{orderId}/cancel")
+    public OrderResponse cancelOrder(
+            @AuthenticationPrincipal(expression = "user") UserAccount user,
+            @PathVariable String orderId
+    ) {
+        return orderService.userCancelOrder(user, orderId);
+    }
 
     @PostMapping("/buy-now")
     public OrderResponse buyNow(
             @AuthenticationPrincipal(expression = "user") UserAccount user,
-            @RequestBody BuyNowRequest request
+            @RequestBody @Valid BuyNowRequest request,
+            HttpServletRequest httpServletRequest
     ) {
-        return orderService.buyNow(user, request);
+        var orderResponse = orderService.buyNow(user, request);
+        if (request.getPaymentMethod() == PaymentMethod.VNPAY) {
+            attachVNPayUrl(user, orderResponse, httpServletRequest);
+        }
+        return orderResponse;
+    }
+
+    private void attachVNPayUrl(UserAccount user, OrderResponse orderResponse, HttpServletRequest httpServletRequest) {
+        var payment = paymentApplicationService.createVNPayPayment(user, orderResponse.getId(), httpServletRequest);
+        orderResponse.setPaymentUrl(payment.getPaymentUrl());
+        orderResponse.setPaymentId(payment.getPaymentId());
+        log.info("Payment URL created for orderId={}, paymentId={}", orderResponse.getId(), orderResponse.getPaymentId());
     }
 }
 

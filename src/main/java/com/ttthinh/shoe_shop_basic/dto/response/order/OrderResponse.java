@@ -2,15 +2,12 @@ package com.ttthinh.shoe_shop_basic.dto.response.order;
 
 import com.ttthinh.shoe_shop_basic.enums.PaymentMethod;
 import com.ttthinh.shoe_shop_basic.enums.PaymentStatus;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 @Getter
 @Setter
@@ -26,6 +23,14 @@ public class OrderResponse {
 
     private String status;
 
+    private String shippingStatus;
+
+    private String shippingProvider;
+
+    private String shippingOrderCode;
+
+    private String trackingUrl;
+
     private BigDecimal totalPrice;
 
     private BigDecimal shippingPrice;
@@ -34,20 +39,18 @@ public class OrderResponse {
 
     private List<OrderItemResponse> items;
 
-    //private PaymentMethod paymentMethod;
-    //private PaymentStatus paymentStatus;
-    private String paymentId; // Cho VNPAY
-    private String paymentUrl; // Cho VNPAY
+    private PaymentMethod paymentMethod;
+    private PaymentStatus paymentStatus;
+    private String paymentId;
+    private String paymentUrl;
 
     private LocalDateTime createdAt;
+    private LocalDateTime shippingCreatedAt;
+    private LocalDateTime shippedAt;
+    private LocalDateTime deliveredAt;
 
     public BigDecimal getFinalTotalPrice() {
         BigDecimal total = totalPrice != null ? totalPrice : BigDecimal.ZERO;
-        BigDecimal shipping = shippingPrice != null ? shippingPrice : BigDecimal.ZERO;
-        BigDecimal discount = discountPrice != null ? discountPrice : BigDecimal.ZERO;
-
-        BigDecimal result = total.add(shipping).subtract(discount);
-
-        return result.max(BigDecimal.ZERO); // không cho âm
+        return total.max(BigDecimal.ZERO);
     }
 }
